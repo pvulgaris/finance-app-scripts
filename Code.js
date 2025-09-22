@@ -19,10 +19,17 @@
  */
 
 /**
- * Maximum income threshold used for the highest tax bracket
- * This represents effectively unlimited income for tax calculation purposes
+ * Configuration constants for tax calculations
  */
-const MAX_INCOME = 100000000; // $100 million
+const TAX_CONFIG = {
+  MAX_INCOME: 100000000, // $100 million - effectively unlimited income
+  SUPPORTED_YEARS: [2023, 2024, 2025, 2026],
+  JURISDICTIONS: {
+    federal: 'Federal',
+    ny: 'NY',
+    ca: 'CA'
+  }
+};
 const TAX_BRACKETS = {
   federal: {
     // Federal tax brackets for married filing jointly
@@ -34,7 +41,7 @@ const TAX_BRACKETS = {
       [364200, 0.24],   // 24% on income from $190,751 to $364,200
       [462500, 0.32],   // 32% on income from $364,201 to $462,500
       [693750, 0.35],   // 35% on income from $462,501 to $693,750
-      [MAX_INCOME, 0.37], // 37% on income over $693,750
+      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $693,750
     ],
     // Source: IRS Revenue Procedure 2023-34
     2024: [
@@ -44,7 +51,7 @@ const TAX_BRACKETS = {
       [383900, 0.24],   // 24% on income from $201,051 to $383,900
       [487450, 0.32],   // 32% on income from $383,901 to $487,450
       [731200, 0.35],   // 35% on income from $487,451 to $731,200
-      [MAX_INCOME, 0.37], // 37% on income over $731,200
+      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $731,200
     ],
     // Source: IRS Revenue Procedure 2024-40
     2025: [
@@ -54,7 +61,7 @@ const TAX_BRACKETS = {
       [394600, 0.24],   // 24% on income from $206,701 to $394,600
       [501050, 0.32],   // 32% on income from $394,601 to $501,050
       [751600, 0.35],   // 35% on income from $501,051 to $751,600
-      [MAX_INCOME, 0.37], // 37% on income over $751,600
+      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $751,600
     ],
     // ESTIMATED - Based on typical 2.8% inflation adjustment
     // Source: Tax Foundation projection based on inflation adjustments
@@ -65,7 +72,7 @@ const TAX_BRACKETS = {
       [405300, 0.24],   // 24% on income from $212,501 to $405,300 (estimated)
       [515100, 0.32],   // 32% on income from $405,301 to $515,100 (estimated)
       [772700, 0.35],   // 35% on income from $515,101 to $772,700 (estimated)
-      [MAX_INCOME, 0.37], // 37% on income over $772,700
+      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $772,700
     ],
   },
   ny: {
@@ -82,7 +89,7 @@ const TAX_BRACKETS = {
       [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
       [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
       [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
-      [MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
+      [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
     ],
     2024: [
       [17150, 0.04],      // 4% on income up to $17,150
@@ -93,7 +100,7 @@ const TAX_BRACKETS = {
       [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
       [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
       [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
-      [MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
+      [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
     ],
     // Source: NY State 2025 Budget (rates unchanged)
     2025: [
@@ -105,7 +112,7 @@ const TAX_BRACKETS = {
       [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
       [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
       [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
-      [MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
+      [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
     ],
     // ESTIMATED - 0.1% reduction planned for lower brackets in 2026
     // Source: NY State 2025 Budget legislation
@@ -118,7 +125,7 @@ const TAX_BRACKETS = {
       [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
       [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
       [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
-      [MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
+      [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
     ],
   },
   ca: {
@@ -135,7 +142,7 @@ const TAX_BRACKETS = {
       [701308, 0.093],    // 9.3% on income from $137,285 to $701,308 (estimated)
       [841572, 0.103],    // 10.3% on income from $701,309 to $841,572 (estimated)
       [1402620, 0.113],   // 11.3% on income from $841,573 to $1,402,620 (estimated)
-      [MAX_INCOME, 0.123],  // 12.3% on income over $1,402,620
+      [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,402,620
     ],
     // Source: California FTB 2024 Tax Rate Schedules
     2024: [
@@ -147,7 +154,7 @@ const TAX_BRACKETS = {
       [721318, 0.093],    // 9.3% on income from $141,213 to $721,318
       [865574, 0.103],    // 10.3% on income from $721,319 to $865,574
       [1442628, 0.113],   // 11.3% on income from $865,575 to $1,442,628
-      [MAX_INCOME, 0.123],  // 12.3% on income over $1,442,628
+      [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,442,628
     ],
     // ESTIMATED - Based on CA inflation adjustment of ~3.3%
     2025: [
@@ -159,7 +166,7 @@ const TAX_BRACKETS = {
       [745121, 0.093],    // 9.3% on income from $145,913 to $745,121 (estimated)
       [894338, 0.103],    // 10.3% on income from $745,122 to $894,338 (estimated)
       [1490235, 0.113],   // 11.3% on income from $894,339 to $1,490,235 (estimated)
-      [MAX_INCOME, 0.123],  // 12.3% on income over $1,490,235
+      [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,490,235
     ],
     // ESTIMATED - Based on continued inflation adjustment
     2026: [
@@ -171,40 +178,41 @@ const TAX_BRACKETS = {
       [769900, 0.093],    // 9.3% on income from $150,658 to $769,900 (estimated)
       [924503, 0.103],    // 10.3% on income from $769,901 to $924,503 (estimated)
       [1539143, 0.113],   // 11.3% on income from $924,504 to $1,539,143 (estimated)
-      [MAX_INCOME, 0.123],  // 12.3% on income over $1,539,143
+      [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,539,143
     ],
   },
 };
 
 /**
- * Validates input parameters for tax calculations
+ * Validates input parameters for tax calculations (private method)
  * @param {number} income - Annual income amount
- * @param {number} year - Tax year (2023-2026)
- * @param {string} jurisdiction - Tax jurisdiction ('federal', 'ny', 'ca')
+ * @param {number} year - Tax year
+ * @param {string} jurisdiction - Tax jurisdiction
  * @throws {Error} If parameters are invalid
+ * @private
  */
-function validateTaxInputs(income, year, jurisdiction = 'federal') {
+function _validateTaxInputs(income, year, jurisdiction = 'federal') {
   if (typeof income !== 'number' || income < 0) {
     throw new Error('Income must be a non-negative number');
   }
 
-  if (typeof year !== 'number' || year < 2023 || year > 2026) {
-    throw new Error('Year must be between 2023 and 2026');
+  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
+    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
   }
 
-  const validJurisdictions = ['federal', 'ny', 'ca'];
-  if (!validJurisdictions.includes(jurisdiction)) {
-    throw new Error(`Jurisdiction must be one of: ${validJurisdictions.join(', ')}`);
+  if (!(jurisdiction in TAX_CONFIG.JURISDICTIONS)) {
+    throw new Error(`Jurisdiction must be one of: ${Object.keys(TAX_CONFIG.JURISDICTIONS).join(', ')}`);
   }
 }
 
 /**
- * Calculates progressive income tax based on tax brackets
+ * Calculates progressive income tax based on tax brackets (private method)
  * @param {Array<Array<number>>} taxBrackets - Array of [income_threshold, tax_rate] pairs
  * @param {number} income - Annual income amount
  * @returns {number} Total tax owed
+ * @private
  */
-function calculateProgressiveTax(taxBrackets, income) {
+function _calculateProgressiveTax(taxBrackets, income) {
   let totalTax = 0;
   let previousBracketThreshold = 0;
 
@@ -229,59 +237,52 @@ function calculateProgressiveTax(taxBrackets, income) {
 }
 
 /**
- * Calculates federal income tax for married filing jointly
+ * Generic tax calculation helper (private method)
  * @param {number} income - Annual gross income
- * @param {number} year - Tax year (2023, 2024, 2025, or 2026)
- * @returns {number} Federal income tax owed
- * @throws {Error} If income or year parameters are invalid
+ * @param {number} year - Tax year (2023-2026)
+ * @param {string} jurisdiction - Tax jurisdiction ('federal', 'ny', 'ca')
+ * @returns {number} Tax owed
+ * @throws {Error} If parameters are invalid or brackets unavailable
+ * @private
  */
-function getFederalIncomeTax(income, year) {
-  validateTaxInputs(income, year, 'federal');
+function _calculateIncomeTax(income, year, jurisdiction) {
+  _validateTaxInputs(income, year, jurisdiction);
 
-  const federalBrackets = TAX_BRACKETS.federal[year];
-  if (!federalBrackets) {
-    throw new Error(`Federal tax brackets not available for year ${year}`);
+  const brackets = TAX_BRACKETS[jurisdiction] && TAX_BRACKETS[jurisdiction][year];
+  if (!brackets) {
+    throw new Error(`${TAX_CONFIG.JURISDICTIONS[jurisdiction]} tax brackets not available for year ${year}`);
   }
 
-  return calculateProgressiveTax(federalBrackets, income);
+  return _calculateProgressiveTax(brackets, income);
+}
+
+/**
+ * Calculates federal income tax for married filing jointly
+ * @param {number} income - Annual gross income
+ * @param {number} year - Tax year (2023-2026)
+ * @returns {number} Federal income tax owed
+ */
+function getFederalIncomeTax(income, year) {
+  return _calculateIncomeTax(income, year, 'federal');
 }
 
 /**
  * Calculates New York State income tax for married filing jointly
  * @param {number} income - Annual gross income
- * @param {number} year - Tax year (2023, 2024, 2025, or 2026)
+ * @param {number} year - Tax year (2023-2026)
  * @returns {number} NY State income tax owed
- * @throws {Error} If income or year parameters are invalid
  */
 function getNYIncomeTax(income, year) {
-  validateTaxInputs(income, year, 'ny');
-
-  const nyBrackets = TAX_BRACKETS.ny[year];
-  if (!nyBrackets) {
-    throw new Error(`NY tax brackets not available for year ${year}`);
-  }
-
-  return calculateProgressiveTax(nyBrackets, income);
+  return _calculateIncomeTax(income, year, 'ny');
 }
 
 /**
  * Calculates California State income tax for married filing jointly
+ * Note: Does not include 1% Mental Health Services Tax on income over $1M
  * @param {number} income - Annual gross income
- * @param {number} year - Tax year (2023, 2024, 2025, or 2026)
+ * @param {number} year - Tax year (2023-2026)
  * @returns {number} California State income tax owed
- * @throws {Error} If income or year parameters are invalid
- *
- * Note: California also has a 1% Mental Health Services Tax on income over $1,000,000
- * which is not included in this calculation. For high earners, consider adding:
- * Math.max(0, income - 1000000) * 0.01
  */
 function getCAIncomeTax(income, year) {
-  validateTaxInputs(income, year, 'ca');
-
-  const caBrackets = TAX_BRACKETS.ca[year];
-  if (!caBrackets) {
-    throw new Error(`CA tax brackets not available for year ${year}`);
-  }
-
-  return calculateProgressiveTax(caBrackets, income);
+  return _calculateIncomeTax(income, year, 'ca');
 }
