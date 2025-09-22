@@ -12,7 +12,7 @@
  * - All rates are for "Married Filing Jointly" status
  * - Rates marked as "ESTIMATED" are projections based on historical inflation adjustments
  * - 2026 federal rates may change if Tax Cuts and Jobs Act provisions expire
- * - Some brackets may be subject to additional taxes (e.g., CA Mental Health Services Tax)
+ * - CA calculations include 1% Mental Health Services Tax on income over $1M (Prop 63, 2004)
  * - These calculations do not include standard deductions, personal exemptions, or credits
  *
  * Last Updated: January 2025
@@ -28,6 +28,11 @@ const TAX_CONFIG = {
     federal: 'Federal',
     ny: 'NY',
     ca: 'CA'
+  },
+  // California Mental Health Services Tax (Proposition 63, 2004)
+  CA_MENTAL_HEALTH_TAX: {
+    RATE: 0.01,           // 1% tax rate
+    THRESHOLD: 1000000    // $1 million threshold
   }
 };
 const TAX_BRACKETS = {
@@ -257,6 +262,17 @@ function _calculateIncomeTax(income, year, jurisdiction) {
 }
 
 /**
+ * Calculates California Mental Health Services Tax (private method)
+ * @param {number} income - Annual gross income
+ * @returns {number} Mental Health Services Tax owed (1% on income over $1M)
+ * @private
+ */
+function _calculateCAMentalHealthTax(income) {
+  const { RATE, THRESHOLD } = TAX_CONFIG.CA_MENTAL_HEALTH_TAX;
+  return Math.max(0, income - THRESHOLD) * RATE;
+}
+
+/**
  * Calculates federal income tax for married filing jointly
  * @param {number} income - Annual gross income
  * @param {number} year - Tax year (2023-2026)
@@ -278,11 +294,13 @@ function getNYIncomeTax(income, year) {
 
 /**
  * Calculates California State income tax for married filing jointly
- * Note: Does not include 1% Mental Health Services Tax on income over $1M
+ * Includes base income tax plus 1% Mental Health Services Tax on income over $1M
  * @param {number} income - Annual gross income
  * @param {number} year - Tax year (2023-2026)
- * @returns {number} California State income tax owed
+ * @returns {number} Total California State income tax owed (including Mental Health Services Tax)
  */
 function getCAIncomeTax(income, year) {
-  return _calculateIncomeTax(income, year, 'ca');
+  const baseTax = _calculateIncomeTax(income, year, 'ca');
+  const mentalHealthTax = _calculateCAMentalHealthTax(income);
+  return baseTax + mentalHealthTax;
 }
