@@ -300,7 +300,5 @@ function getNYIncomeTax(income, year) {
  * @returns {number} Total California State income tax owed (including Mental Health Services Tax)
  */
 function getCAIncomeTax(income, year) {
-  const baseTax = _calculateIncomeTax(income, year, 'ca');
-  const mentalHealthTax = _calculateCAMentalHealthTax(income);
-  return baseTax + mentalHealthTax;
+  return _calculateIncomeTax(income, year, 'ca') + _calculateCAMentalHealthTax(income);
 }
