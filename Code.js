@@ -13,6 +13,7 @@
  * - Rates marked as "ESTIMATED" are projections based on historical inflation adjustments
  * - 2026 federal rates may change if Tax Cuts and Jobs Act provisions expire
  * - CA calculations include 1% Mental Health Services Tax on income over $1M (Prop 63, 2004)
+ * - NIIT (Net Investment Income Tax) is 3.8% on investment income when MAGI > $250K (ACA, 2013)
  * - These calculations do not include standard deductions, personal exemptions, or credits
  *
  * Last Updated: January 2025
@@ -33,6 +34,12 @@ const TAX_CONFIG = {
   CA_MENTAL_HEALTH_TAX: {
     RATE: 0.01,           // 1% tax rate
     THRESHOLD: 1000000    // $1 million threshold
+  },
+  // Net Investment Income Tax (Affordable Care Act, 2013)
+  // 3.8% surtax on investment income for high earners
+  NIIT: {
+    RATE: 0.038,          // 3.8% tax rate
+    THRESHOLD: 250000     // $250,000 threshold (unchanged since 2013)
   }
 };
 const TAX_BRACKETS = {
@@ -387,4 +394,62 @@ function getQualifiedDividendTax(qualifiedDividends, totalTaxableIncome, year) {
 
   // Apply the rate to the qualified dividend amount
   return qualifiedDividends * applicableRate;
+}
+
+/**
+ * Calculates Net Investment Income Tax (NIIT) for married filing jointly
+ * NIIT is a 3.8% surtax on investment income for high earners, introduced by the
+ * Affordable Care Act in 2013. It applies when modified AGI exceeds $250,000.
+ *
+ * The tax is calculated as 3.8% of the LESSER of:
+ * 1. Net investment income (dividends, capital gains, interest, passive rental income, etc.)
+ * 2. The amount by which modified AGI exceeds the threshold ($250,000)
+ *
+ * Note: NIIT rate and threshold have remained unchanged since 2013.
+ *
+ * @param {number} netInvestmentIncome - Total net investment income (dividends, capital gains, interest, etc.)
+ * @param {number} modifiedAGI - Modified Adjusted Gross Income (typically same as AGI)
+ * @param {number} year - Tax year (2013 or later)
+ * @returns {number} Net Investment Income Tax owed
+ * @throws {Error} If parameters are invalid
+ *
+ * @example
+ * // Example 1: $100,000 investment income, $300,000 MAGI
+ * // MAGI exceeds threshold by $50,000, which is less than investment income
+ * const tax1 = getNetInvestmentIncomeTax(100000, 300000, 2024); // Returns $1,900 (3.8% of $50,000)
+ *
+ * @example
+ * // Example 2: $30,000 investment income, $400,000 MAGI
+ * // MAGI exceeds threshold by $150,000, but investment income is only $30,000
+ * const tax2 = getNetInvestmentIncomeTax(30000, 400000, 2024); // Returns $1,140 (3.8% of $30,000)
+ *
+ * @example
+ * // Example 3: $50,000 investment income, $200,000 MAGI
+ * // MAGI does not exceed threshold, so no NIIT
+ * const tax3 = getNetInvestmentIncomeTax(50000, 200000, 2024); // Returns $0
+ */
+function getNetInvestmentIncomeTax(netInvestmentIncome, modifiedAGI, year) {
+  // Validate inputs
+  if (typeof netInvestmentIncome !== 'number' || netInvestmentIncome < 0) {
+    throw new Error('Net investment income must be a non-negative number');
+  }
+
+  if (typeof modifiedAGI !== 'number' || modifiedAGI < 0) {
+    throw new Error('Modified AGI must be a non-negative number');
+  }
+
+  if (typeof year !== 'number' || year < 2013) {
+    throw new Error('Year must be 2013 or later (NIIT introduced in 2013)');
+  }
+
+  const { RATE, THRESHOLD } = TAX_CONFIG.NIIT;
+
+  // Calculate amount by which MAGI exceeds threshold
+  const excessIncome = Math.max(0, modifiedAGI - THRESHOLD);
+
+  // NIIT applies to the lesser of net investment income or excess income
+  const taxableAmount = Math.min(netInvestmentIncome, excessIncome);
+
+  // Apply 3.8% rate
+  return taxableAmount * RATE;
 }
