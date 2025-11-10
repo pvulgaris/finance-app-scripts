@@ -392,6 +392,50 @@ function getCAIncomeTax(income, year) {
 }
 
 /**
+ * Helper function to calculate preferential tax rate (0%, 15%, 20%)
+ * Used for both qualified dividends and long-term capital gains
+ *
+ * @param {number} amount - Amount subject to preferential tax rate
+ * @param {number} totalTaxableIncome - Total taxable income
+ * @param {number} year - Tax year (2023-2026)
+ * @param {string} assetType - Description of asset type for error messages
+ * @returns {number} Tax owed on the amount
+ * @throws {Error} If parameters are invalid
+ * @private
+ */
+function _calculatePreferentialTax(amount, totalTaxableIncome, year, assetType) {
+  // Validate inputs
+  if (typeof amount !== 'number' || amount < 0) {
+    throw new Error(`${assetType} must be a non-negative number`);
+  }
+
+  if (typeof totalTaxableIncome !== 'number' || totalTaxableIncome < 0) {
+    throw new Error('Total taxable income must be a non-negative number');
+  }
+
+  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
+    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
+  }
+
+  const brackets = QUALIFIED_DIVIDEND_BRACKETS[year];
+  if (!brackets) {
+    throw new Error(`Tax brackets not available for year ${year}`);
+  }
+
+  // Determine the tax rate based on total taxable income
+  let applicableRate = 0;
+  for (const [threshold, rate] of brackets) {
+    applicableRate = rate;
+    if (totalTaxableIncome <= threshold) {
+      break;
+    }
+  }
+
+  // Apply the rate to the amount
+  return amount * applicableRate;
+}
+
+/**
  * Calculates federal qualified dividend tax for married filing jointly
  * Qualified dividends are taxed at preferential capital gains rates (0%, 15%, or 20%)
  * based on total taxable income rather than the dividend amount
@@ -408,35 +452,7 @@ function getCAIncomeTax(income, year) {
  * const tax = getQualifiedDividendTax(50000, 200000, 2024); // Returns $7,500
  */
 function getQualifiedDividendTax(qualifiedDividends, totalTaxableIncome, year) {
-  // Validate inputs
-  if (typeof qualifiedDividends !== 'number' || qualifiedDividends < 0) {
-    throw new Error('Qualified dividends must be a non-negative number');
-  }
-
-  if (typeof totalTaxableIncome !== 'number' || totalTaxableIncome < 0) {
-    throw new Error('Total taxable income must be a non-negative number');
-  }
-
-  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
-    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
-  }
-
-  const brackets = QUALIFIED_DIVIDEND_BRACKETS[year];
-  if (!brackets) {
-    throw new Error(`Qualified dividend tax brackets not available for year ${year}`);
-  }
-
-  // Determine the tax rate based on total taxable income
-  let applicableRate = 0;
-  for (const [threshold, rate] of brackets) {
-    applicableRate = rate;
-    if (totalTaxableIncome <= threshold) {
-      break;
-    }
-  }
-
-  // Apply the rate to the qualified dividend amount
-  return qualifiedDividends * applicableRate;
+  return _calculatePreferentialTax(qualifiedDividends, totalTaxableIncome, year, 'Qualified dividends');
 }
 
 /**
@@ -456,35 +472,7 @@ function getQualifiedDividendTax(qualifiedDividends, totalTaxableIncome, year) {
  * const tax = getLongTermCapitalGainsTax(100000, 200000, 2024); // Returns $15,000
  */
 function getLongTermCapitalGainsTax(longTermCapitalGains, totalTaxableIncome, year) {
-  // Validate inputs
-  if (typeof longTermCapitalGains !== 'number' || longTermCapitalGains < 0) {
-    throw new Error('Long-term capital gains must be a non-negative number');
-  }
-
-  if (typeof totalTaxableIncome !== 'number' || totalTaxableIncome < 0) {
-    throw new Error('Total taxable income must be a non-negative number');
-  }
-
-  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
-    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
-  }
-
-  const brackets = QUALIFIED_DIVIDEND_BRACKETS[year];
-  if (!brackets) {
-    throw new Error(`Long-term capital gains tax brackets not available for year ${year}`);
-  }
-
-  // Determine the tax rate based on total taxable income
-  let applicableRate = 0;
-  for (const [threshold, rate] of brackets) {
-    applicableRate = rate;
-    if (totalTaxableIncome <= threshold) {
-      break;
-    }
-  }
-
-  // Apply the rate to the long-term capital gains amount
-  return longTermCapitalGains * applicableRate;
+  return _calculatePreferentialTax(longTermCapitalGains, totalTaxableIncome, year, 'Long-term capital gains');
 }
 
 /**
