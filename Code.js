@@ -189,6 +189,44 @@ const TAX_BRACKETS = {
 };
 
 /**
+ * Qualified dividend tax brackets (capital gains rates) for married filing jointly
+ * Qualified dividends are taxed at 0%, 15%, or 20% based on total taxable income
+ *
+ * Structure: [income_threshold, tax_rate]
+ * - If total income ≤ first threshold: 0% tax on qualified dividends
+ * - If total income ≤ second threshold: 15% tax on qualified dividends
+ * - If total income > second threshold: 20% tax on qualified dividends
+ *
+ * Source: IRS Revenue Procedures (same as ordinary income brackets)
+ */
+const QUALIFIED_DIVIDEND_BRACKETS = {
+  // Source: IRS Revenue Procedure 2022-38
+  2023: [
+    [89250, 0.00],    // 0% on qualified dividends if total income ≤ $89,250
+    [553850, 0.15],   // 15% on qualified dividends if total income ≤ $553,850
+    [TAX_CONFIG.MAX_INCOME, 0.20], // 20% on qualified dividends if total income > $553,850
+  ],
+  // Source: IRS Revenue Procedure 2023-34
+  2024: [
+    [94050, 0.00],    // 0% on qualified dividends if total income ≤ $94,050
+    [583750, 0.15],   // 15% on qualified dividends if total income ≤ $583,750
+    [TAX_CONFIG.MAX_INCOME, 0.20], // 20% on qualified dividends if total income > $583,750
+  ],
+  // Source: IRS Revenue Procedure 2024-40
+  2025: [
+    [96700, 0.00],    // 0% on qualified dividends if total income ≤ $96,700
+    [600050, 0.15],   // 15% on qualified dividends if total income ≤ $600,050
+    [TAX_CONFIG.MAX_INCOME, 0.20], // 20% on qualified dividends if total income > $600,050
+  ],
+  // Source: IRS Revenue Procedure 2025-32 (projected)
+  2026: [
+    [98900, 0.00],    // 0% on qualified dividends if total income ≤ $98,900
+    [613700, 0.15],   // 15% on qualified dividends if total income ≤ $613,700
+    [TAX_CONFIG.MAX_INCOME, 0.20], // 20% on qualified dividends if total income > $613,700
+  ],
+};
+
+/**
  * Validates input parameters for tax calculations (private method)
  * @param {number} income - Annual income amount
  * @param {number} year - Tax year
@@ -301,4 +339,52 @@ function getNYIncomeTax(income, year) {
  */
 function getCAIncomeTax(income, year) {
   return _calculateIncomeTax(income, year, 'ca') + _calculateCAMentalHealthTax(income);
+}
+
+/**
+ * Calculates federal qualified dividend tax for married filing jointly
+ * Qualified dividends are taxed at preferential capital gains rates (0%, 15%, or 20%)
+ * based on total taxable income rather than the dividend amount
+ *
+ * @param {number} qualifiedDividends - Total qualified dividend income
+ * @param {number} totalTaxableIncome - Total taxable income (including dividends)
+ * @param {number} year - Tax year (2023-2026)
+ * @returns {number} Federal tax owed on qualified dividends
+ * @throws {Error} If parameters are invalid
+ *
+ * @example
+ * // Example: $50,000 in qualified dividends, $200,000 total income in 2024
+ * // Total income of $200,000 falls in the 15% bracket
+ * const tax = getQualifiedDividendTax(50000, 200000, 2024); // Returns $7,500
+ */
+function getQualifiedDividendTax(qualifiedDividends, totalTaxableIncome, year) {
+  // Validate inputs
+  if (typeof qualifiedDividends !== 'number' || qualifiedDividends < 0) {
+    throw new Error('Qualified dividends must be a non-negative number');
+  }
+
+  if (typeof totalTaxableIncome !== 'number' || totalTaxableIncome < 0) {
+    throw new Error('Total taxable income must be a non-negative number');
+  }
+
+  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
+    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
+  }
+
+  const brackets = QUALIFIED_DIVIDEND_BRACKETS[year];
+  if (!brackets) {
+    throw new Error(`Qualified dividend tax brackets not available for year ${year}`);
+  }
+
+  // Determine the tax rate based on total taxable income
+  let applicableRate = 0;
+  for (const [threshold, rate] of brackets) {
+    applicableRate = rate;
+    if (totalTaxableIncome <= threshold) {
+      break;
+    }
+  }
+
+  // Apply the rate to the qualified dividend amount
+  return qualifiedDividends * applicableRate;
 }
