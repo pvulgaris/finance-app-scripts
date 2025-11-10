@@ -277,6 +277,38 @@ const QUALIFIED_DIVIDEND_BRACKETS = {
 };
 
 /**
+ * Validates that a value is a non-negative number (private method)
+ * @param {number} value - Value to validate
+ * @param {string} fieldName - Name of the field for error messages
+ * @throws {Error} If value is not a non-negative number
+ * @private
+ */
+function _validateNonNegativeNumber(value, fieldName) {
+  if (typeof value !== 'number' || value < 0) {
+    throw new Error(`${fieldName} must be a non-negative number`);
+  }
+}
+
+/**
+ * Validates tax year with optional minimum year constraint (private method)
+ * @param {number} year - Tax year to validate
+ * @param {number} minYear - Optional minimum year (if not provided, uses SUPPORTED_YEARS)
+ * @throws {Error} If year is invalid
+ * @private
+ */
+function _validateYear(year, minYear = null) {
+  if (minYear !== null) {
+    if (typeof year !== 'number' || year < minYear) {
+      throw new Error(`Year must be ${minYear} or later`);
+    }
+  } else {
+    if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
+      throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
+    }
+  }
+}
+
+/**
  * Validates input parameters for tax calculations (private method)
  * @param {number} income - Annual income amount
  * @param {number} year - Tax year
@@ -285,13 +317,8 @@ const QUALIFIED_DIVIDEND_BRACKETS = {
  * @private
  */
 function _validateTaxInputs(income, year, jurisdiction = 'federal') {
-  if (typeof income !== 'number' || income < 0) {
-    throw new Error('Income must be a non-negative number');
-  }
-
-  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
-    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
-  }
+  _validateNonNegativeNumber(income, 'Income');
+  _validateYear(year);
 
   if (!(jurisdiction in TAX_CONFIG.JURISDICTIONS)) {
     throw new Error(`Jurisdiction must be one of: ${Object.keys(TAX_CONFIG.JURISDICTIONS).join(', ')}`);
@@ -405,17 +432,9 @@ function getCAIncomeTax(income, year) {
  */
 function _calculatePreferentialTax(amount, totalTaxableIncome, year, assetType) {
   // Validate inputs
-  if (typeof amount !== 'number' || amount < 0) {
-    throw new Error(`${assetType} must be a non-negative number`);
-  }
-
-  if (typeof totalTaxableIncome !== 'number' || totalTaxableIncome < 0) {
-    throw new Error('Total taxable income must be a non-negative number');
-  }
-
-  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
-    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
-  }
+  _validateNonNegativeNumber(amount, assetType);
+  _validateNonNegativeNumber(totalTaxableIncome, 'Total taxable income');
+  _validateYear(year);
 
   const brackets = QUALIFIED_DIVIDEND_BRACKETS[year];
   if (!brackets) {
@@ -509,17 +528,9 @@ function getLongTermCapitalGainsTax(longTermCapitalGains, totalTaxableIncome, ye
  */
 function getNetInvestmentIncomeTax(netInvestmentIncome, modifiedAGI, year) {
   // Validate inputs
-  if (typeof netInvestmentIncome !== 'number' || netInvestmentIncome < 0) {
-    throw new Error('Net investment income must be a non-negative number');
-  }
-
-  if (typeof modifiedAGI !== 'number' || modifiedAGI < 0) {
-    throw new Error('Modified AGI must be a non-negative number');
-  }
-
-  if (typeof year !== 'number' || year < 2013) {
-    throw new Error('Year must be 2013 or later (NIIT introduced in 2013)');
-  }
+  _validateNonNegativeNumber(netInvestmentIncome, 'Net investment income');
+  _validateNonNegativeNumber(modifiedAGI, 'Modified AGI');
+  _validateYear(year, 2013); // NIIT introduced in 2013
 
   const { RATE, THRESHOLD } = TAX_CONFIG.NIIT;
 
@@ -576,13 +587,8 @@ function getChildTaxCredit(numberOfChildren, modifiedAGI, year) {
     throw new Error('Number of children must be a non-negative integer');
   }
 
-  if (typeof modifiedAGI !== 'number' || modifiedAGI < 0) {
-    throw new Error('Modified AGI must be a non-negative number');
-  }
-
-  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
-    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
-  }
+  _validateNonNegativeNumber(modifiedAGI, 'Modified AGI');
+  _validateYear(year);
 
   // Get credit amounts for the year
   const creditData = CHILD_TAX_CREDIT_AMOUNTS[year];
