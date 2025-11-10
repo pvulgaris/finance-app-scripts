@@ -14,7 +14,8 @@
  * - 2026 federal rates may change if Tax Cuts and Jobs Act provisions expire
  * - CA calculations include 1% Mental Health Services Tax on income over $1M (Prop 63, 2004)
  * - NIIT (Net Investment Income Tax) is 3.8% on investment income when MAGI > $250K (ACA, 2013)
- * - These calculations do not include standard deductions, personal exemptions, or credits
+ * - Child Tax Credit: $2,000-$2,200 per child, phases out above $400K MAGI (OBBBA, 2025)
+ * - These calculations do not include standard deductions, personal exemptions, or other credits
  *
  * Last Updated: January 2025
  */
@@ -40,6 +41,13 @@ const TAX_CONFIG = {
   NIIT: {
     RATE: 0.038,          // 3.8% tax rate
     THRESHOLD: 250000     // $250,000 threshold (unchanged since 2013)
+  },
+  // Child Tax Credit phase-out parameters (married filing jointly)
+  // Phase-out threshold permanent at $400,000 per OBBBA (July 2025)
+  CHILD_TAX_CREDIT: {
+    PHASE_OUT_THRESHOLD: 400000,  // $400,000 for married filing jointly
+    PHASE_OUT_RATE: 50,            // $50 reduction per $1,000 over threshold
+    PHASE_OUT_INCREMENT: 1000      // Phase-out calculated per $1,000 increment
   }
 };
 const TAX_BRACKETS = {
@@ -193,6 +201,40 @@ const TAX_BRACKETS = {
       [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,539,143
     ],
   },
+};
+
+/**
+ * Child Tax Credit amounts by year (married filing jointly)
+ * Source: IRS and One Big Beautiful Bill Act (OBBBA, July 2025)
+ *
+ * Structure: { creditPerChild, refundableAmount }
+ * - creditPerChild: Maximum credit amount per qualifying child under age 17
+ * - refundableAmount: Maximum refundable portion (Additional Child Tax Credit)
+ *
+ * Note: OBBBA made the $2,200 credit permanent and indexed for inflation starting 2026
+ * Phase-out threshold remains permanently at $400,000 for married filing jointly
+ */
+const CHILD_TAX_CREDIT_AMOUNTS = {
+  // Source: IRS Publication 972 for 2023
+  2023: {
+    creditPerChild: 2000,      // $2,000 per qualifying child
+    refundableAmount: 1600     // Up to $1,600 refundable (ACTC)
+  },
+  // Source: IRS Publication 972 for 2024
+  2024: {
+    creditPerChild: 2000,      // $2,000 per qualifying child
+    refundableAmount: 1700     // Up to $1,700 refundable (ACTC)
+  },
+  // Source: OBBBA (July 2025)
+  2025: {
+    creditPerChild: 2200,      // $2,200 per qualifying child
+    refundableAmount: 1700     // Up to $1,700 refundable (ACTC)
+  },
+  // Source: OBBBA (made permanent and indexed for inflation)
+  2026: {
+    creditPerChild: 2200,      // $2,200 per qualifying child
+    refundableAmount: 1700     // Up to $1,700 refundable (ACTC)
+  }
 };
 
 /**
@@ -452,4 +494,93 @@ function getNetInvestmentIncomeTax(netInvestmentIncome, modifiedAGI, year) {
 
   // Apply 3.8% rate
   return taxableAmount * RATE;
+}
+
+/**
+ * Calculates Child Tax Credit for married filing jointly
+ * The CTC provides tax relief for families with qualifying children under age 17.
+ *
+ * Credit amounts and refundability:
+ * - 2023: $2,000 per child (up to $1,600 refundable)
+ * - 2024: $2,000 per child (up to $1,700 refundable)
+ * - 2025-2026: $2,200 per child (up to $1,700 refundable)
+ *
+ * The credit phases out at $50 per $1,000 (or fraction thereof) of modified AGI
+ * exceeding $400,000 for married filing jointly.
+ *
+ * Note: The One Big Beautiful Bill Act (OBBBA, July 2025) made the enhanced CTC
+ * permanent and indexed for inflation starting 2026. Phase-out threshold remains
+ * permanently at $400,000 for married filing jointly.
+ *
+ * @param {number} numberOfChildren - Number of qualifying children under age 17
+ * @param {number} modifiedAGI - Modified Adjusted Gross Income
+ * @param {number} year - Tax year (2023-2026)
+ * @returns {number} Child Tax Credit amount (before considering tax liability)
+ * @throws {Error} If parameters are invalid
+ *
+ * @example
+ * // Example 1: 2 children, $300,000 MAGI in 2024 (below phase-out threshold)
+ * const credit1 = getChildTaxCredit(2, 300000, 2024); // Returns $4,000
+ *
+ * @example
+ * // Example 2: 3 children, $450,000 MAGI in 2025 (above phase-out threshold)
+ * // Excess: $50,000 / $1,000 = 50 increments × $50 = $2,500 reduction
+ * const credit2 = getChildTaxCredit(3, 450000, 2025); // Returns $4,100 ($6,600 - $2,500)
+ *
+ * @example
+ * // Example 3: 1 child, $600,000 MAGI in 2026 (high income)
+ * // Excess: $200,000 / $1,000 = 200 increments × $50 = $10,000 reduction
+ * // Credit fully phased out (reduction exceeds credit amount)
+ * const credit3 = getChildTaxCredit(1, 600000, 2026); // Returns $0
+ */
+function getChildTaxCredit(numberOfChildren, modifiedAGI, year) {
+  // Validate inputs
+  if (typeof numberOfChildren !== 'number' || numberOfChildren < 0 || !Number.isInteger(numberOfChildren)) {
+    throw new Error('Number of children must be a non-negative integer');
+  }
+
+  if (typeof modifiedAGI !== 'number' || modifiedAGI < 0) {
+    throw new Error('Modified AGI must be a non-negative number');
+  }
+
+  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
+    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
+  }
+
+  // Get credit amounts for the year
+  const creditData = CHILD_TAX_CREDIT_AMOUNTS[year];
+  if (!creditData) {
+    throw new Error(`Child Tax Credit amounts not available for year ${year}`);
+  }
+
+  // Calculate base credit
+  const baseCredit = creditData.creditPerChild * numberOfChildren;
+
+  // If no children or no credit, return 0
+  if (numberOfChildren === 0 || baseCredit === 0) {
+    return 0;
+  }
+
+  // Get phase-out parameters
+  const { PHASE_OUT_THRESHOLD, PHASE_OUT_RATE, PHASE_OUT_INCREMENT } = TAX_CONFIG.CHILD_TAX_CREDIT;
+
+  // Calculate phase-out reduction
+  if (modifiedAGI <= PHASE_OUT_THRESHOLD) {
+    // Below threshold, no phase-out
+    return baseCredit;
+  }
+
+  // Calculate excess income over threshold
+  const excessIncome = modifiedAGI - PHASE_OUT_THRESHOLD;
+
+  // Calculate number of $1,000 increments (round up for any fraction)
+  const increments = Math.ceil(excessIncome / PHASE_OUT_INCREMENT);
+
+  // Calculate total reduction
+  const reduction = increments * PHASE_OUT_RATE;
+
+  // Apply reduction, but credit cannot go below zero
+  const finalCredit = Math.max(0, baseCredit - reduction);
+
+  return finalCredit;
 }
