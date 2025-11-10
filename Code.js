@@ -238,13 +238,14 @@ const CHILD_TAX_CREDIT_AMOUNTS = {
 };
 
 /**
- * Qualified dividend tax brackets (capital gains rates) for married filing jointly
- * Qualified dividends are taxed at 0%, 15%, or 20% based on total taxable income
+ * Qualified dividend and long-term capital gains tax brackets for married filing jointly
+ * Both qualified dividends and long-term capital gains are taxed at 0%, 15%, or 20%
+ * based on total taxable income (same brackets apply to both)
  *
  * Structure: [income_threshold, tax_rate]
- * - If total income ≤ first threshold: 0% tax on qualified dividends
- * - If total income ≤ second threshold: 15% tax on qualified dividends
- * - If total income > second threshold: 20% tax on qualified dividends
+ * - If total income ≤ first threshold: 0% tax
+ * - If total income ≤ second threshold: 15% tax
+ * - If total income > second threshold: 20% tax
  *
  * Source: IRS Revenue Procedures (same as ordinary income brackets)
  */
@@ -436,6 +437,54 @@ function getQualifiedDividendTax(qualifiedDividends, totalTaxableIncome, year) {
 
   // Apply the rate to the qualified dividend amount
   return qualifiedDividends * applicableRate;
+}
+
+/**
+ * Calculates federal long-term capital gains tax for married filing jointly
+ * Long-term capital gains (assets held > 1 year) are taxed at preferential rates
+ * (0%, 15%, or 20%) based on total taxable income, same as qualified dividends
+ *
+ * @param {number} longTermCapitalGains - Total long-term capital gains
+ * @param {number} totalTaxableIncome - Total taxable income (including gains)
+ * @param {number} year - Tax year (2023-2026)
+ * @returns {number} Federal tax owed on long-term capital gains
+ * @throws {Error} If parameters are invalid
+ *
+ * @example
+ * // Example: $100,000 in long-term capital gains, $200,000 total income in 2024
+ * // Total income of $200,000 falls in the 15% bracket
+ * const tax = getLongTermCapitalGainsTax(100000, 200000, 2024); // Returns $15,000
+ */
+function getLongTermCapitalGainsTax(longTermCapitalGains, totalTaxableIncome, year) {
+  // Validate inputs
+  if (typeof longTermCapitalGains !== 'number' || longTermCapitalGains < 0) {
+    throw new Error('Long-term capital gains must be a non-negative number');
+  }
+
+  if (typeof totalTaxableIncome !== 'number' || totalTaxableIncome < 0) {
+    throw new Error('Total taxable income must be a non-negative number');
+  }
+
+  if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
+    throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
+  }
+
+  const brackets = QUALIFIED_DIVIDEND_BRACKETS[year];
+  if (!brackets) {
+    throw new Error(`Long-term capital gains tax brackets not available for year ${year}`);
+  }
+
+  // Determine the tax rate based on total taxable income
+  let applicableRate = 0;
+  for (const [threshold, rate] of brackets) {
+    applicableRate = rate;
+    if (totalTaxableIncome <= threshold) {
+      break;
+    }
+  }
+
+  // Apply the rate to the long-term capital gains amount
+  return longTermCapitalGains * applicableRate;
 }
 
 /**
