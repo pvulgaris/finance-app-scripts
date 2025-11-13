@@ -83,16 +83,15 @@ const TAX_BRACKETS = {
       [751600, 0.35],   // 35% on income from $501,051 to $751,600
       [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $751,600
     ],
-    // ESTIMATED - Based on typical 2.8% inflation adjustment
-    // Source: Tax Foundation projection based on inflation adjustments
+    // Source: IRS Revenue Procedure 2025-32 (One Big Beautiful Bill Act adjustments)
     2026: [
-      [24500, 0.10],    // 10% on income up to $24,500 (estimated)
-      [99550, 0.12],    // 12% on income from $24,501 to $99,550 (estimated)
-      [212500, 0.22],   // 22% on income from $99,551 to $212,500 (estimated)
-      [405300, 0.24],   // 24% on income from $212,501 to $405,300 (estimated)
-      [515100, 0.32],   // 32% on income from $405,301 to $515,100 (estimated)
-      [772700, 0.35],   // 35% on income from $515,101 to $772,700 (estimated)
-      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $772,700
+      [24800, 0.10],    // 10% on income up to $24,800
+      [100800, 0.12],   // 12% on income from $24,801 to $100,800
+      [211400, 0.22],   // 22% on income from $100,801 to $211,400
+      [403550, 0.24],   // 24% on income from $211,401 to $403,550
+      [512450, 0.32],   // 32% on income from $403,551 to $512,450
+      [768700, 0.35],   // 35% on income from $512,451 to $768,700
+      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $768,700
     ],
   },
   ny: {
@@ -134,14 +133,13 @@ const TAX_BRACKETS = {
       [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
       [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
     ],
-    // ESTIMATED - 0.1% reduction planned for lower brackets in 2026
-    // Source: NY State 2025 Budget legislation
+    // Source: NY State 2025 Budget (rates unchanged through 2026; reductions start in 2027)
     2026: [
-      [17150, 0.039],     // 3.9% on income up to $17,150 (reduced by 0.1%)
-      [23600, 0.044],     // 4.4% on income from $17,151 to $23,600 (reduced by 0.1%)
-      [27900, 0.0515],    // 5.15% on income from $23,601 to $27,900 (reduced by 0.1%)
-      [161550, 0.054],    // 5.4% on income from $27,901 to $161,550 (reduced by 0.1%)
-      [323200, 0.059],    // 5.9% on income from $161,551 to $323,200 (reduced by 0.1%)
+      [17150, 0.04],      // 4% on income up to $17,150
+      [23600, 0.045],     // 4.5% on income from $17,151 to $23,600
+      [27900, 0.0525],    // 5.25% on income from $23,601 to $27,900
+      [161550, 0.055],    // 5.5% on income from $27,901 to $161,550
+      [323200, 0.06],     // 6% on income from $161,551 to $323,200
       [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
       [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
       [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
@@ -176,7 +174,7 @@ const TAX_BRACKETS = {
       [1442628, 0.113],   // 11.3% on income from $865,575 to $1,442,628
       [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,442,628
     ],
-    // ESTIMATED - Based on CA inflation adjustment of ~3.3%
+    // ESTIMATED - Based on CA inflation adjustment of 3.0% (CCPI)
     2025: [
       [22222, 0.01],      // 1% on income up to $22,222 (estimated)
       [52682, 0.02],      // 2% on income from $22,223 to $52,682 (estimated)
