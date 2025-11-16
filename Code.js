@@ -7,12 +7,14 @@
  * - Federal: IRS Publication 15 and Revenue Procedures
  * - NY: NY State Department of Taxation and Finance
  * - CA: California Franchise Tax Board (FTB)
+ * - NC: North Carolina Department of Revenue (NCDOR)
  *
  * IMPORTANT NOTES:
- * - All rates are for "Married Filing Jointly" status
+ * - All rates are for "Married Filing Jointly" status (NC flat tax applies to all filing statuses)
  * - Rates marked as "ESTIMATED" are projections based on historical inflation adjustments
  * - 2026 federal rates may change if Tax Cuts and Jobs Act provisions expire
  * - CA calculations include 1% Mental Health Services Tax on income over $1M (Prop 63, 2004)
+ * - NC uses a flat tax rate that has been declining annually (4.75% in 2023 to 3.99% in 2026)
  * - NIIT (Net Investment Income Tax) is 3.8% on investment income when MAGI > $250K (ACA, 2013)
  * - Child Tax Credit: $2,000-$2,200 per child, phases out above $400K MAGI (OBBBA, 2025)
  * - These calculations do not include standard deductions, personal exemptions, or other credits
@@ -29,7 +31,8 @@ const TAX_CONFIG = {
   JURISDICTIONS: {
     federal: 'Federal',
     ny: 'NY',
-    ca: 'CA'
+    ca: 'CA',
+    nc: 'NC'
   },
   // California Mental Health Services Tax (Proposition 63, 2004)
   CA_MENTAL_HEALTH_TAX: {
@@ -197,6 +200,28 @@ const TAX_BRACKETS = {
       [924503, 0.103],    // 10.3% on income from $769,901 to $924,503 (estimated)
       [1539143, 0.113],   // 11.3% on income from $924,504 to $1,539,143 (estimated)
       [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,539,143
+    ],
+  },
+  nc: {
+    // North Carolina State tax brackets
+    // NC uses a flat tax rate (same for all filing statuses)
+    // Source: NC Department of Revenue
+
+    // Source: NCDOR Tax Rate Schedules
+    2023: [
+      [TAX_CONFIG.MAX_INCOME, 0.0475],  // 4.75% flat tax on all income
+    ],
+    // Source: NCDOR Tax Rate Schedules
+    2024: [
+      [TAX_CONFIG.MAX_INCOME, 0.045],   // 4.50% flat tax on all income
+    ],
+    // Source: NCDOR Tax Rate Schedules
+    2025: [
+      [TAX_CONFIG.MAX_INCOME, 0.0425],  // 4.25% flat tax on all income
+    ],
+    // Source: NCDOR Tax Rate Schedules (Session Law 2023-134)
+    2026: [
+      [TAX_CONFIG.MAX_INCOME, 0.0399],  // 3.99% flat tax on all income
     ],
   },
 };
@@ -414,6 +439,17 @@ function getNYIncomeTax(income, year) {
  */
 function getCAIncomeTax(income, year) {
   return _calculateIncomeTax(income, year, 'ca') + _calculateCAMentalHealthTax(income);
+}
+
+/**
+ * Calculates North Carolina State income tax
+ * NC uses a flat tax rate that applies to all income regardless of filing status
+ * @param {number} income - Annual gross income
+ * @param {number} year - Tax year (2023-2026)
+ * @returns {number} NC State income tax owed
+ */
+function getNCIncomeTax(income, year) {
+  return _calculateIncomeTax(income, year, 'nc');
 }
 
 /**
