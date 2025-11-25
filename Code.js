@@ -28,12 +28,6 @@
 const TAX_CONFIG = {
   MAX_INCOME: 100000000, // $100 million - effectively unlimited income
   SUPPORTED_YEARS: [2023, 2024, 2025, 2026],
-  JURISDICTIONS: {
-    federal: 'Federal',
-    ny: 'NY',
-    ca: 'CA',
-    nc: 'NC'
-  },
   // California Mental Health Services Tax (Proposition 63, 2004)
   CA_MENTAL_HEALTH_TAX: {
     RATE: 0.01,           // 1% tax rate
@@ -209,14 +203,15 @@ function _validateNonNegativeNumber(value, fieldName) {
  * @private
  */
 function _validateYear(year, minYear = null) {
-  if (minYear !== null) {
-    if (typeof year !== 'number' || year < minYear) {
-      throw new Error(`Year must be ${minYear} or later`);
-    }
-  } else {
+  if (minYear === null) {
     if (!TAX_CONFIG.SUPPORTED_YEARS.includes(year)) {
       throw new Error(`Year must be one of: ${TAX_CONFIG.SUPPORTED_YEARS.join(', ')}`);
     }
+    return;
+  }
+
+  if (typeof year !== 'number' || year < minYear) {
+    throw new Error(`Year must be ${minYear} or later`);
   }
 }
 
@@ -232,8 +227,8 @@ function _validateTaxInputs(income, year, jurisdiction = 'federal') {
   _validateNonNegativeNumber(income, 'Income');
   _validateYear(year);
 
-  if (!(jurisdiction in TAX_CONFIG.JURISDICTIONS)) {
-    throw new Error(`Jurisdiction must be one of: ${Object.keys(TAX_CONFIG.JURISDICTIONS).join(', ')}`);
+  if (!(jurisdiction in TAX_BRACKETS)) {
+    throw new Error(`Jurisdiction must be one of: ${Object.keys(TAX_BRACKETS).join(', ')}`);
   }
 }
 
@@ -282,7 +277,7 @@ function _calculateIncomeTax(income, year, jurisdiction) {
 
   const brackets = TAX_BRACKETS[jurisdiction] && TAX_BRACKETS[jurisdiction][year];
   if (!brackets) {
-    throw new Error(`${TAX_CONFIG.JURISDICTIONS[jurisdiction]} tax brackets not available for year ${year}`);
+    throw new Error(`Tax brackets for '${jurisdiction}' not available for year ${year}`);
   }
 
   return _calculateProgressiveTax(brackets, income);
@@ -296,7 +291,10 @@ function _calculateIncomeTax(income, year, jurisdiction) {
  */
 function _calculateCAMentalHealthTax(income) {
   const { RATE, THRESHOLD } = TAX_CONFIG.CA_MENTAL_HEALTH_TAX;
-  return Math.max(0, income - THRESHOLD) * RATE;
+  if (income <= THRESHOLD) {
+    return 0;
+  }
+  return (income - THRESHOLD) * RATE;
 }
 
 /**
@@ -513,6 +511,11 @@ function getChildTaxCredit(numberOfChildren, modifiedAGI, year) {
   _validateNonNegativeNumber(modifiedAGI, 'Modified AGI');
   _validateYear(year);
 
+  // If no children, return 0
+  if (numberOfChildren === 0) {
+    return 0;
+  }
+
   // Get credit amounts for the year
   const creditData = CHILD_TAX_CREDIT_AMOUNTS[year];
   if (!creditData) {
@@ -521,11 +524,6 @@ function getChildTaxCredit(numberOfChildren, modifiedAGI, year) {
 
   // Calculate base credit
   const baseCredit = creditData.creditPerChild * numberOfChildren;
-
-  // If no children or no credit, return 0
-  if (numberOfChildren === 0 || baseCredit === 0) {
-    return 0;
-  }
 
   // Get phase-out parameters
   const { PHASE_OUT_THRESHOLD, PHASE_OUT_RATE, PHASE_OUT_INCREMENT } = TAX_CONFIG.CHILD_TAX_CREDIT;
