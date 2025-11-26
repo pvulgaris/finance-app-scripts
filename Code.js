@@ -53,250 +53,139 @@ const TAX_CONFIG = {
     PHASE_OUT_INCREMENT: 1000      // Phase-out calculated per $1,000 increment
   }
 };
+
+// NY State tax brackets (unchanged 2023-2026 per NY State 2025 Budget)
+// Source: NY State Tax Law Section 601
+const NY_BRACKETS = [
+  [17150, 0.04],
+  [23600, 0.045],
+  [27900, 0.0525],
+  [161550, 0.055],
+  [323200, 0.06],
+  [2155350, 0.0685],
+  [5000000, 0.0965],
+  [25000000, 0.103],
+  [TAX_CONFIG.MAX_INCOME, 0.109],
+];
+
 const TAX_BRACKETS = {
   federal: {
-    // Federal tax brackets for married filing jointly
-    // Source: IRS Revenue Procedure 2022-38 (2023), 2023-34 (2024), 2024-40 (2025)
+    // Source: IRS Revenue Procedure 2022-38 (2023), 2023-34 (2024), 2024-40 (2025), 2025-32 (2026)
     2023: [
-      [22000, 0.10],    // 10% on income up to $22,000
-      [89450, 0.12],    // 12% on income from $22,001 to $89,450
-      [190750, 0.22],   // 22% on income from $89,451 to $190,750
-      [364200, 0.24],   // 24% on income from $190,751 to $364,200
-      [462500, 0.32],   // 32% on income from $364,201 to $462,500
-      [693750, 0.35],   // 35% on income from $462,501 to $693,750
-      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $693,750
+      [22000, 0.10],
+      [89450, 0.12],
+      [190750, 0.22],
+      [364200, 0.24],
+      [462500, 0.32],
+      [693750, 0.35],
+      [TAX_CONFIG.MAX_INCOME, 0.37],
     ],
-    // Source: IRS Revenue Procedure 2023-34
     2024: [
-      [23200, 0.10],    // 10% on income up to $23,200
-      [94300, 0.12],    // 12% on income from $23,201 to $94,300
-      [201050, 0.22],   // 22% on income from $94,301 to $201,050
-      [383900, 0.24],   // 24% on income from $201,051 to $383,900
-      [487450, 0.32],   // 32% on income from $383,901 to $487,450
-      [731200, 0.35],   // 35% on income from $487,451 to $731,200
-      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $731,200
+      [23200, 0.10],
+      [94300, 0.12],
+      [201050, 0.22],
+      [383900, 0.24],
+      [487450, 0.32],
+      [731200, 0.35],
+      [TAX_CONFIG.MAX_INCOME, 0.37],
     ],
-    // Source: IRS Revenue Procedure 2024-40
     2025: [
-      [23850, 0.10],    // 10% on income up to $23,850
-      [96950, 0.12],    // 12% on income from $23,851 to $96,950
-      [206700, 0.22],   // 22% on income from $96,951 to $206,700
-      [394600, 0.24],   // 24% on income from $206,701 to $394,600
-      [501050, 0.32],   // 32% on income from $394,601 to $501,050
-      [751600, 0.35],   // 35% on income from $501,051 to $751,600
-      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $751,600
+      [23850, 0.10],
+      [96950, 0.12],
+      [206700, 0.22],
+      [394600, 0.24],
+      [501050, 0.32],
+      [751600, 0.35],
+      [TAX_CONFIG.MAX_INCOME, 0.37],
     ],
-    // Source: IRS Revenue Procedure 2025-32 (One Big Beautiful Bill Act adjustments)
     2026: [
-      [24800, 0.10],    // 10% on income up to $24,800
-      [100800, 0.12],   // 12% on income from $24,801 to $100,800
-      [211400, 0.22],   // 22% on income from $100,801 to $211,400
-      [403550, 0.24],   // 24% on income from $211,401 to $403,550
-      [512450, 0.32],   // 32% on income from $403,551 to $512,450
-      [768700, 0.35],   // 35% on income from $512,451 to $768,700
-      [TAX_CONFIG.MAX_INCOME, 0.37], // 37% on income over $768,700
+      [24800, 0.10],
+      [100800, 0.12],
+      [211400, 0.22],
+      [403550, 0.24],
+      [512450, 0.32],
+      [768700, 0.35],
+      [TAX_CONFIG.MAX_INCOME, 0.37],
     ],
   },
   ny: {
-    // New York State tax brackets for married filing jointly
-    // NY has not updated brackets for inflation in recent years
-
-    // Source: NY State Tax Law Section 601
-    2023: [
-      [17150, 0.04],      // 4% on income up to $17,150
-      [23600, 0.045],     // 4.5% on income from $17,151 to $23,600
-      [27900, 0.0525],    // 5.25% on income from $23,601 to $27,900
-      [161550, 0.055],    // 5.5% on income from $27,901 to $161,550
-      [323200, 0.06],     // 6% on income from $161,551 to $323,200
-      [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
-      [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
-      [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
-      [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
-    ],
-    2024: [
-      [17150, 0.04],      // 4% on income up to $17,150
-      [23600, 0.045],     // 4.5% on income from $17,151 to $23,600
-      [27900, 0.0525],    // 5.25% on income from $23,601 to $27,900
-      [161550, 0.055],    // 5.5% on income from $27,901 to $161,550
-      [323200, 0.06],     // 6% on income from $161,551 to $323,200
-      [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
-      [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
-      [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
-      [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
-    ],
-    // Source: NY State 2025 Budget (rates unchanged)
-    2025: [
-      [17150, 0.04],      // 4% on income up to $17,150
-      [23600, 0.045],     // 4.5% on income from $17,151 to $23,600
-      [27900, 0.0525],    // 5.25% on income from $23,601 to $27,900
-      [161550, 0.055],    // 5.5% on income from $27,901 to $161,550
-      [323200, 0.06],     // 6% on income from $161,551 to $323,200
-      [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
-      [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
-      [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
-      [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
-    ],
-    // Source: NY State 2025 Budget (rates unchanged through 2026; reductions start in 2027)
-    2026: [
-      [17150, 0.04],      // 4% on income up to $17,150
-      [23600, 0.045],     // 4.5% on income from $17,151 to $23,600
-      [27900, 0.0525],    // 5.25% on income from $23,601 to $27,900
-      [161550, 0.055],    // 5.5% on income from $27,901 to $161,550
-      [323200, 0.06],     // 6% on income from $161,551 to $323,200
-      [2155350, 0.0685],  // 6.85% on income from $323,201 to $2,155,350
-      [5000000, 0.0965],  // 9.65% on income from $2,155,351 to $5,000,000
-      [25000000, 0.103],  // 10.3% on income from $5,000,001 to $25,000,000
-      [TAX_CONFIG.MAX_INCOME, 0.109], // 10.9% on income over $25,000,000
-    ],
+    2023: NY_BRACKETS,
+    2024: NY_BRACKETS,
+    2025: NY_BRACKETS,
+    2026: NY_BRACKETS,
   },
   ca: {
-    // California State tax brackets for married filing jointly
-    // Source: California Franchise Tax Board (FTB)
-
-    // ESTIMATED - 2023 brackets based on 2024 with inflation adjustment
+    // Source: California FTB (2024 actual, others estimated with ~3% inflation)
     2023: [
-      [20924, 0.01],      // 1% on income up to $20,924 (estimated)
-      [49564, 0.02],      // 2% on income from $20,925 to $49,564 (estimated)
-      [78252, 0.04],      // 4% on income from $49,565 to $78,252 (estimated)
-      [108616, 0.06],     // 6% on income from $78,253 to $108,616 (estimated)
-      [137284, 0.08],     // 8% on income from $108,617 to $137,284 (estimated)
-      [701308, 0.093],    // 9.3% on income from $137,285 to $701,308 (estimated)
-      [841572, 0.103],    // 10.3% on income from $701,309 to $841,572 (estimated)
-      [1402620, 0.113],   // 11.3% on income from $841,573 to $1,402,620 (estimated)
-      [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,402,620
+      [20924, 0.01],
+      [49564, 0.02],
+      [78252, 0.04],
+      [108616, 0.06],
+      [137284, 0.08],
+      [701308, 0.093],
+      [841572, 0.103],
+      [1402620, 0.113],
+      [TAX_CONFIG.MAX_INCOME, 0.123],
     ],
-    // Source: California FTB 2024 Tax Rate Schedules
     2024: [
-      [21512, 0.01],      // 1% on income up to $21,512
-      [50998, 0.02],      // 2% on income from $21,513 to $50,998
-      [80490, 0.04],      // 4% on income from $50,999 to $80,490
-      [111732, 0.06],     // 6% on income from $80,491 to $111,732
-      [141212, 0.08],     // 8% on income from $111,733 to $141,212
-      [721318, 0.093],    // 9.3% on income from $141,213 to $721,318
-      [865574, 0.103],    // 10.3% on income from $721,319 to $865,574
-      [1442628, 0.113],   // 11.3% on income from $865,575 to $1,442,628
-      [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,442,628
+      [21512, 0.01],
+      [50998, 0.02],
+      [80490, 0.04],
+      [111732, 0.06],
+      [141212, 0.08],
+      [721318, 0.093],
+      [865574, 0.103],
+      [1442628, 0.113],
+      [TAX_CONFIG.MAX_INCOME, 0.123],
     ],
-    // ESTIMATED - Based on CA inflation adjustment of 3.0% (CCPI)
     2025: [
-      [22222, 0.01],      // 1% on income up to $22,222 (estimated)
-      [52682, 0.02],      // 2% on income from $22,223 to $52,682 (estimated)
-      [83146, 0.04],      // 4% on income from $52,683 to $83,146 (estimated)
-      [115418, 0.06],     // 6% on income from $83,147 to $115,418 (estimated)
-      [145912, 0.08],     // 8% on income from $115,419 to $145,912 (estimated)
-      [745121, 0.093],    // 9.3% on income from $145,913 to $745,121 (estimated)
-      [894338, 0.103],    // 10.3% on income from $745,122 to $894,338 (estimated)
-      [1490235, 0.113],   // 11.3% on income from $894,339 to $1,490,235 (estimated)
-      [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,490,235
+      [22222, 0.01],
+      [52682, 0.02],
+      [83146, 0.04],
+      [115418, 0.06],
+      [145912, 0.08],
+      [745121, 0.093],
+      [894338, 0.103],
+      [1490235, 0.113],
+      [TAX_CONFIG.MAX_INCOME, 0.123],
     ],
-    // ESTIMATED - Based on continued inflation adjustment
     2026: [
-      [22956, 0.01],      // 1% on income up to $22,956 (estimated)
-      [54421, 0.02],      // 2% on income from $22,957 to $54,421 (estimated)
-      [85890, 0.04],      // 4% on income from $54,422 to $85,890 (estimated)
-      [119307, 0.06],     // 6% on income from $85,891 to $119,307 (estimated)
-      [150657, 0.08],     // 8% on income from $119,308 to $150,657 (estimated)
-      [769900, 0.093],    // 9.3% on income from $150,658 to $769,900 (estimated)
-      [924503, 0.103],    // 10.3% on income from $769,901 to $924,503 (estimated)
-      [1539143, 0.113],   // 11.3% on income from $924,504 to $1,539,143 (estimated)
-      [TAX_CONFIG.MAX_INCOME, 0.123],  // 12.3% on income over $1,539,143
+      [22956, 0.01],
+      [54421, 0.02],
+      [85890, 0.04],
+      [119307, 0.06],
+      [150657, 0.08],
+      [769900, 0.093],
+      [924503, 0.103],
+      [1539143, 0.113],
+      [TAX_CONFIG.MAX_INCOME, 0.123],
     ],
   },
   nc: {
-    // North Carolina State tax brackets
-    // NC uses a flat tax rate (same for all filing statuses)
-    // Source: NC Department of Revenue
-
-    // Source: NCDOR Tax Rate Schedules
-    2023: [
-      [TAX_CONFIG.MAX_INCOME, 0.0475],  // 4.75% flat tax on all income
-    ],
-    // Source: NCDOR Tax Rate Schedules
-    2024: [
-      [TAX_CONFIG.MAX_INCOME, 0.045],   // 4.50% flat tax on all income
-    ],
-    // Source: NCDOR Tax Rate Schedules
-    2025: [
-      [TAX_CONFIG.MAX_INCOME, 0.0425],  // 4.25% flat tax on all income
-    ],
-    // Source: NCDOR Tax Rate Schedules (Session Law 2023-134)
-    2026: [
-      [TAX_CONFIG.MAX_INCOME, 0.0399],  // 3.99% flat tax on all income
-    ],
+    // Source: NCDOR (flat tax, declining annually per Session Law 2023-134)
+    2023: [[TAX_CONFIG.MAX_INCOME, 0.0475]],
+    2024: [[TAX_CONFIG.MAX_INCOME, 0.045]],
+    2025: [[TAX_CONFIG.MAX_INCOME, 0.0425]],
+    2026: [[TAX_CONFIG.MAX_INCOME, 0.0399]],
   },
 };
 
-/**
- * Child Tax Credit amounts by year (married filing jointly)
- * Source: IRS and One Big Beautiful Bill Act (OBBBA, July 2025)
- *
- * Structure: { creditPerChild, refundableAmount }
- * - creditPerChild: Maximum credit amount per qualifying child under age 17
- * - refundableAmount: Maximum refundable portion (Additional Child Tax Credit)
- *
- * Note: OBBBA made the $2,200 credit permanent and indexed for inflation starting 2026
- * Phase-out threshold remains permanently at $400,000 for married filing jointly
- */
+// Child Tax Credit amounts { creditPerChild, refundableAmount }
+// Source: IRS Pub 972, OBBBA 2025 (permanent $2.2K starting 2026)
 const CHILD_TAX_CREDIT_AMOUNTS = {
-  // Source: IRS Publication 972 for 2023
-  2023: {
-    creditPerChild: 2000,      // $2,000 per qualifying child
-    refundableAmount: 1600     // Up to $1,600 refundable (ACTC)
-  },
-  // Source: IRS Publication 972 for 2024
-  2024: {
-    creditPerChild: 2000,      // $2,000 per qualifying child
-    refundableAmount: 1700     // Up to $1,700 refundable (ACTC)
-  },
-  // Source: OBBBA (July 2025)
-  2025: {
-    creditPerChild: 2200,      // $2,200 per qualifying child
-    refundableAmount: 1700     // Up to $1,700 refundable (ACTC)
-  },
-  // Source: OBBBA (made permanent and indexed for inflation)
-  2026: {
-    creditPerChild: 2200,      // $2,200 per qualifying child
-    refundableAmount: 1700     // Up to $1,700 refundable (ACTC)
-  }
+  2023: { creditPerChild: 2000, refundableAmount: 1600 },
+  2024: { creditPerChild: 2000, refundableAmount: 1700 },
+  2025: { creditPerChild: 2200, refundableAmount: 1700 },
+  2026: { creditPerChild: 2200, refundableAmount: 1700 }
 };
 
-/**
- * Qualified dividend and long-term capital gains tax brackets for married filing jointly
- * Both qualified dividends and long-term capital gains are taxed at 0%, 15%, or 20%
- * based on total taxable income (same brackets apply to both)
- *
- * Structure: [income_threshold, tax_rate]
- * - If total income ≤ first threshold: 0% tax
- * - If total income ≤ second threshold: 15% tax
- * - If total income > second threshold: 20% tax
- *
- * Source: IRS Revenue Procedures (same as ordinary income brackets)
- */
+// Qualified dividends & long-term capital gains brackets (0%, 15%, 20% based on total income)
+// Source: IRS Revenue Procedures 2022-38 (2023), 2023-34 (2024), 2024-40 (2025), 2025-32 (2026)
 const QUALIFIED_DIVIDEND_BRACKETS = {
-  // Source: IRS Revenue Procedure 2022-38
-  2023: [
-    [89250, 0.00],    // 0% on qualified dividends if total income ≤ $89,250
-    [553850, 0.15],   // 15% on qualified dividends if total income ≤ $553,850
-    [TAX_CONFIG.MAX_INCOME, 0.20], // 20% on qualified dividends if total income > $553,850
-  ],
-  // Source: IRS Revenue Procedure 2023-34
-  2024: [
-    [94050, 0.00],    // 0% on qualified dividends if total income ≤ $94,050
-    [583750, 0.15],   // 15% on qualified dividends if total income ≤ $583,750
-    [TAX_CONFIG.MAX_INCOME, 0.20], // 20% on qualified dividends if total income > $583,750
-  ],
-  // Source: IRS Revenue Procedure 2024-40
-  2025: [
-    [96700, 0.00],    // 0% on qualified dividends if total income ≤ $96,700
-    [600050, 0.15],   // 15% on qualified dividends if total income ≤ $600,050
-    [TAX_CONFIG.MAX_INCOME, 0.20], // 20% on qualified dividends if total income > $600,050
-  ],
-  // Source: IRS Revenue Procedure 2025-32 (projected)
-  2026: [
-    [98900, 0.00],    // 0% on qualified dividends if total income ≤ $98,900
-    [613700, 0.15],   // 15% on qualified dividends if total income ≤ $613,700
-    [TAX_CONFIG.MAX_INCOME, 0.20], // 20% on qualified dividends if total income > $613,700
-  ],
+  2023: [[89250, 0.00], [553850, 0.15], [TAX_CONFIG.MAX_INCOME, 0.20]],
+  2024: [[94050, 0.00], [583750, 0.15], [TAX_CONFIG.MAX_INCOME, 0.20]],
+  2025: [[96700, 0.00], [600050, 0.15], [TAX_CONFIG.MAX_INCOME, 0.20]],
+  2026: [[98900, 0.00], [613700, 0.15], [TAX_CONFIG.MAX_INCOME, 0.20]],
 };
 
 /**
