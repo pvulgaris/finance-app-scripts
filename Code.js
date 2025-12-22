@@ -183,6 +183,16 @@ const QUALIFIED_DIVIDEND_BRACKETS = {
 };
 
 /**
+ * Rounds a number to cents (2 decimal places) to avoid floating point errors
+ * @param {number} value - Value to round
+ * @returns {number} Value rounded to nearest cent
+ * @private
+ */
+function _roundToCents(value) {
+  return Math.round(value * 100) / 100;
+}
+
+/**
  * Validates that a value is a non-negative number (private method)
  * @param {number} value - Value to validate
  * @param {string} fieldName - Name of the field for error messages
@@ -304,7 +314,7 @@ function _calculateCAMentalHealthTax(income) {
  * @returns {number} Federal income tax owed
  */
 function getFederalIncomeTax(income, year) {
-  return _calculateIncomeTax(income, year, 'federal');
+  return _roundToCents(_calculateIncomeTax(income, year, 'federal'));
 }
 
 /**
@@ -314,7 +324,7 @@ function getFederalIncomeTax(income, year) {
  * @returns {number} NY State income tax owed
  */
 function getNYIncomeTax(income, year) {
-  return _calculateIncomeTax(income, year, 'ny');
+  return _roundToCents(_calculateIncomeTax(income, year, 'ny'));
 }
 
 /**
@@ -325,7 +335,7 @@ function getNYIncomeTax(income, year) {
  * @returns {number} Total California State income tax owed (including Mental Health Services Tax)
  */
 function getCAIncomeTax(income, year) {
-  return _calculateIncomeTax(income, year, 'ca') + _calculateCAMentalHealthTax(income);
+  return _roundToCents(_calculateIncomeTax(income, year, 'ca') + _calculateCAMentalHealthTax(income));
 }
 
 /**
@@ -336,15 +346,20 @@ function getCAIncomeTax(income, year) {
  * @returns {number} NC State income tax owed
  */
 function getNCIncomeTax(income, year) {
-  return _calculateIncomeTax(income, year, 'nc');
+  return _roundToCents(_calculateIncomeTax(income, year, 'nc'));
 }
 
 /**
  * Helper function to calculate preferential tax rate (0%, 15%, 20%)
  * Used for both qualified dividends and long-term capital gains
  *
+ * This function correctly handles bracket-spanning: when preferential income
+ * pushes total income across bracket boundaries, different portions are taxed
+ * at different rates. Ordinary income fills lower brackets first, then
+ * preferential income is stacked on top and taxed progressively.
+ *
  * @param {number} amount - Amount subject to preferential tax rate
- * @param {number} totalTaxableIncome - Total taxable income
+ * @param {number} totalTaxableIncome - Total taxable income (including preferential amount)
  * @param {number} year - Tax year (2023-2026)
  * @param {string} assetType - Description of asset type for error messages
  * @returns {number} Tax owed on the amount
@@ -362,17 +377,30 @@ function _calculatePreferentialTax(amount, totalTaxableIncome, year, assetType) 
     throw new Error(`Tax brackets not available for year ${year}`);
   }
 
-  // Determine the tax rate based on total taxable income
-  let applicableRate = 0;
+  // Ordinary income fills brackets first; preferential income stacks on top
+  const ordinaryIncome = totalTaxableIncome - amount;
+  let totalTax = 0;
+  let remainingAmount = amount;
+  let previousThreshold = 0;
+
   for (const [threshold, rate] of brackets) {
-    applicableRate = rate;
-    if (totalTaxableIncome <= threshold) {
-      break;
+    // Calculate space in this bracket after ordinary income
+    const bracketStart = Math.max(ordinaryIncome, previousThreshold);
+    const bracketSpace = Math.max(0, threshold - bracketStart);
+
+    // Calculate how much preferential income fits in this bracket
+    const amountInBracket = Math.min(remainingAmount, bracketSpace);
+
+    if (amountInBracket > 0) {
+      totalTax += amountInBracket * rate;
+      remainingAmount -= amountInBracket;
     }
+
+    if (remainingAmount <= 0) break;
+    previousThreshold = threshold;
   }
 
-  // Apply the rate to the amount
-  return amount * applicableRate;
+  return totalTax;
 }
 
 /**
@@ -392,7 +420,7 @@ function _calculatePreferentialTax(amount, totalTaxableIncome, year, assetType) 
  * const tax = getQualifiedDividendTax(50000, 200000, 2024); // Returns $7,500
  */
 function getQualifiedDividendTax(qualifiedDividends, totalTaxableIncome, year) {
-  return _calculatePreferentialTax(qualifiedDividends, totalTaxableIncome, year, 'Qualified dividends');
+  return _roundToCents(_calculatePreferentialTax(qualifiedDividends, totalTaxableIncome, year, 'Qualified dividends'));
 }
 
 /**
@@ -412,7 +440,7 @@ function getQualifiedDividendTax(qualifiedDividends, totalTaxableIncome, year) {
  * const tax = getLongTermCapitalGainsTax(100000, 200000, 2024); // Returns $15,000
  */
 function getLongTermCapitalGainsTax(longTermCapitalGains, totalTaxableIncome, year) {
-  return _calculatePreferentialTax(longTermCapitalGains, totalTaxableIncome, year, 'Long-term capital gains');
+  return _roundToCents(_calculatePreferentialTax(longTermCapitalGains, totalTaxableIncome, year, 'Long-term capital gains'));
 }
 
 /**
@@ -462,7 +490,7 @@ function getNetInvestmentIncomeTax(netInvestmentIncome, modifiedAGI, year) {
   const taxableAmount = Math.min(netInvestmentIncome, excessIncome);
 
   // Apply 3.8% rate
-  return taxableAmount * RATE;
+  return _roundToCents(taxableAmount * RATE);
 }
 
 /**
