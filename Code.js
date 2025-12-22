@@ -290,6 +290,11 @@ function _calculateIncomeTax(income, year, jurisdiction) {
     throw new Error(`Tax brackets for '${jurisdiction}' not available for year ${year}`);
   }
 
+  // Flat tax optimization: single bracket means simple multiplication
+  if (brackets.length === 1) {
+    return income * brackets[0][1];
+  }
+
   return _calculateProgressiveTax(brackets, income);
 }
 
