@@ -48,14 +48,27 @@ const TAX_CONFIG = {
   }
 };
 
-// NY State tax brackets (unchanged 2023-2026 per NY State 2025 Budget)
-// Source: NY State Tax Law Section 601
-const NY_BRACKETS = [
+// NY State tax brackets - Source: NY State Tax Law Section 601
+// 2023-2025: Original rates per NY State 2025 Budget
+// 2026: Reduced rates for income ≤$323,200 per NY Budget Act of 2025
+const NY_BRACKETS_2023_2025 = [
   [17150, 0.04],
   [23600, 0.045],
   [27900, 0.0525],
   [161550, 0.055],
   [323200, 0.06],
+  [2155350, 0.0685],
+  [5000000, 0.0965],
+  [25000000, 0.103],
+  [TAX_CONFIG.MAX_INCOME, 0.109],
+];
+
+const NY_BRACKETS_2026 = [
+  [17150, 0.039],
+  [23600, 0.044],
+  [27900, 0.0515],
+  [161550, 0.054],
+  [323200, 0.059],
   [2155350, 0.0685],
   [5000000, 0.0965],
   [25000000, 0.103],
@@ -103,10 +116,10 @@ const TAX_BRACKETS = {
     ],
   },
   ny: {
-    2023: NY_BRACKETS,
-    2024: NY_BRACKETS,
-    2025: NY_BRACKETS,
-    2026: NY_BRACKETS,
+    2023: NY_BRACKETS_2023_2025,
+    2024: NY_BRACKETS_2023_2025,
+    2025: NY_BRACKETS_2023_2025,
+    2026: NY_BRACKETS_2026,
   },
   ca: {
     // Source: California FTB (2024 actual, others estimated with ~3% inflation)
