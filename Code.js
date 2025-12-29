@@ -363,6 +363,69 @@ function getNCIncomeTax(income, year) {
 }
 
 /**
+ * Returns the marginal tax rate for a given income level
+ * The marginal rate is the tax rate applied to the next dollar of income
+ *
+ * @param {number} income - Annual taxable income
+ * @param {number} year - Tax year (2023-2026)
+ * @param {string} jurisdiction - Tax jurisdiction ('federal', 'ny', 'ca', 'nc')
+ * @returns {number} Marginal tax rate as a decimal (e.g., 0.22 for 22%)
+ * @throws {Error} If parameters are invalid
+ *
+ * @example
+ * // Federal marginal rate for $150,000 income in 2024
+ * getMarginalRate(150000, 2024, 'federal'); // Returns 0.22
+ *
+ * @example
+ * // NY marginal rate for $500,000 income in 2025
+ * getMarginalRate(500000, 2025, 'ny'); // Returns 0.0685
+ */
+function getMarginalRate(income, year, jurisdiction) {
+  _validateTaxInputs(income, year, jurisdiction);
+
+  const brackets = TAX_BRACKETS[jurisdiction][year];
+
+  for (const [threshold, rate] of brackets) {
+    if (income <= threshold) {
+      return rate;
+    }
+  }
+
+  // Return highest rate if income exceeds all thresholds
+  return brackets[brackets.length - 1][1];
+}
+
+/**
+ * Returns the marginal tax rate for long-term capital gains and qualified dividends
+ *
+ * @param {number} totalTaxableIncome - Total taxable income (including gains/dividends)
+ * @param {number} year - Tax year (2023-2026)
+ * @returns {number} Marginal capital gains rate as a decimal (0, 0.15, or 0.20)
+ * @throws {Error} If parameters are invalid
+ *
+ * @example
+ * // Capital gains rate for $100,000 total income in 2024
+ * getCapitalGainsMarginalRate(100000, 2024); // Returns 0.15
+ */
+function getCapitalGainsMarginalRate(totalTaxableIncome, year) {
+  _validateNonNegativeNumber(totalTaxableIncome, 'Total taxable income');
+  _validateYear(year);
+
+  const brackets = QUALIFIED_DIVIDEND_BRACKETS[year];
+  if (!brackets) {
+    throw new Error(`Capital gains brackets not available for year ${year}`);
+  }
+
+  for (const [threshold, rate] of brackets) {
+    if (totalTaxableIncome <= threshold) {
+      return rate;
+    }
+  }
+
+  return brackets[brackets.length - 1][1];
+}
+
+/**
  * Helper function to calculate preferential tax rate (0%, 15%, 20%)
  * Used for both qualified dividends and long-term capital gains
  *
