@@ -386,7 +386,7 @@ function getMarginalRate(income, year, jurisdiction) {
   const brackets = TAX_BRACKETS[jurisdiction][year];
 
   for (const [threshold, rate] of brackets) {
-    if (income <= threshold) {
+    if (income < threshold) {
       return rate;
     }
   }
