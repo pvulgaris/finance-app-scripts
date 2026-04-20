@@ -19,7 +19,7 @@
  * - Child Tax Credit: $2,000-$2,200 per child, phases out above $400K MAGI (OBBBA, 2025)
  * - These calculations do not include standard deductions, personal exemptions, or other credits
  *
- * Last Updated: January 2025
+ * Last Updated: April 2026
  */
 
 /**
@@ -122,7 +122,7 @@ const TAX_BRACKETS = {
     2026: NY_BRACKETS_2026,
   },
   ca: {
-    // Source: California FTB (2024 actual, others estimated with ~3% inflation)
+    // Source: California FTB Schedule Y (2023-2025 actual; 2026 estimated via 2.971% CA CPI adjustment)
     2023: [
       [20924, 0.01],
       [49564, 0.02],
@@ -146,25 +146,25 @@ const TAX_BRACKETS = {
       [TAX_CONFIG.MAX_INCOME, 0.123],
     ],
     2025: [
-      [22222, 0.01],
-      [52682, 0.02],
-      [83146, 0.04],
-      [115418, 0.06],
-      [145912, 0.08],
-      [745121, 0.093],
-      [894338, 0.103],
-      [1490235, 0.113],
+      [22158, 0.01],
+      [52528, 0.02],
+      [82904, 0.04],
+      [115084, 0.06],
+      [145448, 0.08],
+      [742958, 0.093],
+      [891542, 0.103],
+      [1485906, 0.113],
       [TAX_CONFIG.MAX_INCOME, 0.123],
     ],
     2026: [
-      [22956, 0.01],
-      [54421, 0.02],
-      [85890, 0.04],
-      [119307, 0.06],
-      [150657, 0.08],
-      [769900, 0.093],
-      [924503, 0.103],
-      [1539143, 0.113],
+      [22816, 0.01],
+      [54089, 0.02],
+      [85367, 0.04],
+      [118503, 0.06],
+      [149769, 0.08],
+      [765031, 0.093],
+      [918030, 0.103],
+      [1530052, 0.113],
       [TAX_CONFIG.MAX_INCOME, 0.123],
     ],
   },
@@ -213,8 +213,8 @@ function _roundToCents(value) {
  * @private
  */
 function _validateNonNegativeNumber(value, fieldName) {
-  if (typeof value !== 'number' || value < 0) {
-    throw new Error(`${fieldName} must be a non-negative number`);
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(`${fieldName} must be a non-negative finite number`);
   }
 }
 
@@ -417,6 +417,10 @@ function _calculatePreferentialTax(amount, totalTaxableIncome, year, assetType) 
   _validateNonNegativeNumber(amount, assetType);
   _validateNonNegativeNumber(totalTaxableIncome, 'Total taxable income');
   _validateYear(year);
+
+  if (amount > totalTaxableIncome) {
+    throw new Error(`${assetType} (${amount}) cannot exceed total taxable income (${totalTaxableIncome})`);
+  }
 
   const brackets = QUALIFIED_DIVIDEND_BRACKETS[year];
   if (!brackets) {
