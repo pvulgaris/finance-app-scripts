@@ -1,0 +1,9 @@
+# Keep development-only files out of the Apps Script deploy.
+# clasp pushes every .js / .gs / .json under rootDir by default; this
+# file uses gitignore-style patterns to filter that set.
+
+# Node-only tests (require() / vm module don't exist in Apps Script).
+*.test.js
+
+# Local editor / tooling state.
+.claude/**

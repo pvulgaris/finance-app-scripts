@@ -75,6 +75,53 @@ const NY_BRACKETS_2026 = [
   [TAX_CONFIG.MAX_INCOME, 0.109],
 ];
 
+// ─── NY tax table benefit recapture (MFJ) ───────────────────────────────
+// NY Form IT-201-I, Tax computation worksheets 2–6 (2025). Source:
+//   https://www.tax.ny.gov/pdf/2025/inc/it201i_2025.pdf (pp. 34–35)
+// Coefficients verified identical in the 2023 and 2024 editions.
+//
+// For NYAGI > $107,650, NY phases out the benefit of the lower brackets:
+//   phase-in fraction f = min(NYAGI − anchor, 50,000) / 50,000
+//   recaptured tax     = bracketed + base + benefit × f
+// Once f = 1, the top applicable rate effectively applies to ALL taxable
+// income in the band, not just the amount above the bracket threshold.
+//
+// The first-band worksheet (WS 1) phases in from bracketed tax to a flat
+// 5.5% × taxable income, anchored at $107,650.
+//
+// Only MFJ is encoded here — matches the rest of the library, which is
+// MFJ-only (see top-of-file notes and the README). This library receives
+// a single income argument; we treat it as both NYAGI (line 33) and
+// taxable income (line 38). Where recapture matters (high income), the
+// phase-in is fully complete, so this simplification matches filed-
+// return outcomes.
+
+const _NY_RECAPTURE_PHASE_IN_START = 107650;      // phase-in begins here
+const _NY_RECAPTURE_PHASE_IN_WINDOW = 50000;      // completes over $50K of NYAGI
+const _NY_RECAPTURE_CLIFF_THRESHOLD = 25000000;   // WS 6: flat top rate above this
+const _NY_RECAPTURE_CLIFF_RATE = 0.109;
+
+// Each row is either a higher band { tiLimit, anchor, base, benefit }
+// or a first-band row { tiLimit, firstBand: true, flatRate, anchor }.
+// MFJ & qualifying surviving spouse — Worksheets 1–5.
+const _NY_RECAPTURE_BANDS_MFJ_2023_2025 = [
+  { tiLimit: 161550,   firstBand: true, flatRate: 0.055, anchor: 107650 },
+  { tiLimit: 323200,   anchor: 161550,   base: 333,    benefit: 807 },
+  { tiLimit: 2155350,  anchor: 323200,   base: 1140,   benefit: 2747 },
+  { tiLimit: 5000000,  anchor: 2155350,  base: 3887,   benefit: 60350 },
+  { tiLimit: Infinity, anchor: 5000000,  base: 64237,  benefit: 32500 },
+];
+
+const NY_RECAPTURE_MFJ_TABLE = {
+  2023: _NY_RECAPTURE_BANDS_MFJ_2023_2025,
+  2024: _NY_RECAPTURE_BANDS_MFJ_2023_2025,
+  2025: _NY_RECAPTURE_BANDS_MFJ_2023_2025,
+  // 2026 intentionally omitted — recapture coefficients will change with
+  // the NY Budget Act of 2025 rate cuts; the official 2026 IT-201-I has
+  // not been published yet. getNYIncomeTax returns bracketed tax only
+  // for 2026 (prior behavior) until the coefficients are transcribed.
+};
+
 const TAX_BRACKETS = {
   federal: {
     // Source: IRS Revenue Procedure 2022-38 (2023), 2023-34 (2024), 2024-40 (2025), 2025-32 (2026)
@@ -331,13 +378,73 @@ function getFederalIncomeTax(income, year) {
 }
 
 /**
- * Calculates New York State income tax for married filing jointly
- * @param {number} income - Annual gross income
+ * Applies NY "tax table benefit recapture" on top of the MFJ bracketed tax.
+ *
+ * Encodes the IT-201-I Tax computation worksheets 2–6 (MFJ): for NYAGI
+ * above $107,650, NY phases out the benefit of the lower brackets. See
+ * NY_RECAPTURE_MFJ_TABLE above for the transcribed coefficients.
+ *
+ * Assumes NYAGI == taxableIncome (this library receives a single income
+ * argument; see the NY_RECAPTURE_MFJ_TABLE comment for why this is safe).
+ *
+ * Years outside the published table (currently 2026) return the
+ * bracketed tax unchanged so existing callers aren't broken.
+ *
+ * @param {number} taxableIncome - NY taxable income (also treated as NYAGI)
+ * @param {number} bracketedTax - Progressive tax from NY MFJ brackets
+ * @param {number} year - Tax year
+ * @returns {number} Tax after recapture (unrounded)
+ * @private
+ */
+function _applyNYRecapture(taxableIncome, bracketedTax, year) {
+  // Below the phase-in threshold: no recapture applies.
+  if (taxableIncome <= _NY_RECAPTURE_PHASE_IN_START) {
+    return bracketedTax;
+  }
+
+  const bands = NY_RECAPTURE_MFJ_TABLE[year];
+  if (!bands) {
+    // Year not covered by transcribed worksheets — return bracketed tax
+    // unchanged (preserves pre-fix behavior for e.g. 2026).
+    return bracketedTax;
+  }
+
+  // WS 6: when NYAGI > $25M, flat top rate (10.9%) × taxable income.
+  if (taxableIncome > _NY_RECAPTURE_CLIFF_THRESHOLD) {
+    return _NY_RECAPTURE_CLIFF_RATE * taxableIncome;
+  }
+
+  // Locate the band whose taxable-income ceiling contains our income.
+  const band = bands.find(b => taxableIncome <= b.tiLimit);
+  const phaseIn = Math.min(
+    Math.max(0, taxableIncome - band.anchor),
+    _NY_RECAPTURE_PHASE_IN_WINDOW
+  ) / _NY_RECAPTURE_PHASE_IN_WINDOW;
+
+  if (band.firstBand) {
+    // WS 1: phase in from bracketed tax to flatRate × taxableIncome.
+    const flatTax = band.flatRate * taxableIncome;
+    return bracketedTax + (flatTax - bracketedTax) * phaseIn;
+  }
+
+  // WS 2–5: bracketed + base + benefit × phase-in fraction.
+  return bracketedTax + band.base + band.benefit * phaseIn;
+}
+
+/**
+ * Calculates New York State income tax for married filing jointly.
+ *
+ * Applies the "tax table benefit recapture" required by Form IT-201
+ * (worksheets 2–6 MFJ) for NYAGI > $107,650.
+ *
+ * @param {number} income - Annual NY taxable income (treated as NYAGI too)
  * @param {number} year - Tax year (2023-2026)
  * @returns {number} NY State income tax owed
+ * @throws {Error} If parameters are invalid
  */
 function getNYIncomeTax(income, year) {
-  return _roundToCents(_calculateIncomeTax(income, year, 'ny'));
+  const bracketedTax = _calculateIncomeTax(income, year, 'ny');
+  return _roundToCents(_applyNYRecapture(income, bracketedTax, year));
 }
 
 /**
