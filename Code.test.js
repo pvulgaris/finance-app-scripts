@@ -86,14 +86,20 @@ test('2023 MFJ $1,022,424 matches 2025 (same coefficients)', () => {
   assert.strictEqual(getNYIncomeTax(1022424, 2023), getNYIncomeTax(1022424, 2025));
 });
 
-test('2026 MFJ unchanged (bracketed only; no recapture table yet)', () => {
-  // 2026 brackets differ from 2023-2025 and have no published recapture
-  // table. getNYIncomeTax must still work for 2026 and return the plain
-  // bracketed tax (pre-fix behavior) — this preserves existing callers.
-  // 2026 at $50,000:
+test('2026 MFJ $50,000 → straight bracket (below phase-in)', () => {
+  // TI below $107,650 → no recapture regardless of year. Uses 2026
+  // bracket rates (lower by 0.1pp below $323,200 per NY Budget Act):
   // 0.039·17,150 + 0.044·6,450 + 0.0515·4,300 + 0.054·22,100
   // = 668.85 + 283.80 + 221.45 + 1,193.40 = 2,367.50
   assert.strictEqual(getNYIncomeTax(50000, 2026), 2367.50);
+});
+
+test('2026 MFJ $1,883,870 → $129,045 ±1 (fully recaptured, WS 3)', () => {
+  // WS 3 MFJ 2026 (TI in $323,200–$2,155,350): bracketed + 1,140 + 3,070.
+  // bracketed_2026 at $1,883,870 = 124,834.45; recaptured ≈ 129,044.45,
+  // landing at 6.85% × TI (top-bracket flat). Coefficients differ from
+  // 2023-2025 because the 2026 Budget Act cut the lower-bracket rates.
+  approxEquals(getNYIncomeTax(1883870, 2026), 129045, 1, '1883870 MFJ 2026');
 });
 
 // ──────────────────────────────────────────────────────────────────────

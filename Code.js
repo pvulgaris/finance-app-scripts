@@ -112,14 +112,27 @@ const _NY_RECAPTURE_BANDS_MFJ_2023_2025 = [
   { tiLimit: Infinity, anchor: 5000000,  base: 64237,  benefit: 32500 },
 ];
 
+// 2026 coefficients derived from NY_BRACKETS_2026 (NY Budget Act of 2025
+// rate cuts for income ≤$323,200). The IT-201-I recapture formula is
+// unchanged — only the bracket rates below $323,200 moved — so:
+//   base    = prev_top_rate × anchor − bracketed_at_anchor
+//   benefit = (top_rate − prev_top_rate) × anchor
+// yields these integers (rounded to nearest dollar). WS 1's flatRate is
+// the 2026 first-band top rate (5.4%). Re-verify against the official
+// IT-201-I 2026 when NY publishes it (~Jan 2027).
+const _NY_RECAPTURE_BANDS_MFJ_2026 = [
+  { tiLimit: 161550,   firstBand: true, flatRate: 0.054, anchor: 107650 },
+  { tiLimit: 323200,   anchor: 161550,   base: 333,    benefit: 808 },
+  { tiLimit: 2155350,  anchor: 323200,   base: 1140,   benefit: 3070 },
+  { tiLimit: 5000000,  anchor: 2155350,  base: 4211,   benefit: 60350 },
+  { tiLimit: Infinity, anchor: 5000000,  base: 64560,  benefit: 32500 },
+];
+
 const NY_RECAPTURE_MFJ_TABLE = {
   2023: _NY_RECAPTURE_BANDS_MFJ_2023_2025,
   2024: _NY_RECAPTURE_BANDS_MFJ_2023_2025,
   2025: _NY_RECAPTURE_BANDS_MFJ_2023_2025,
-  // 2026 intentionally omitted — recapture coefficients will change with
-  // the NY Budget Act of 2025 rate cuts; the official 2026 IT-201-I has
-  // not been published yet. getNYIncomeTax returns bracketed tax only
-  // for 2026 (prior behavior) until the coefficients are transcribed.
+  2026: _NY_RECAPTURE_BANDS_MFJ_2026,
 };
 
 // ─── NY itemized deduction phaseout (MFJ) ───────────────────────────────
@@ -477,8 +490,8 @@ function getFederalIncomeTax(income, year) {
  * Assumes NYAGI == taxableIncome (this library receives a single income
  * argument; see the NY_RECAPTURE_MFJ_TABLE comment for why this is safe).
  *
- * Years outside the published table (currently 2026) return the
- * bracketed tax unchanged so existing callers aren't broken.
+ * Years outside the transcribed table fall back to bracketed tax
+ * unchanged so existing callers aren't broken.
  *
  * @param {number} taxableIncome - NY taxable income (also treated as NYAGI)
  * @param {number} bracketedTax - Progressive tax from NY MFJ brackets
