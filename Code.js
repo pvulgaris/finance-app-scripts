@@ -112,14 +112,14 @@ const _NY_RECAPTURE_BANDS_MFJ_2023_2025 = [
   { tiLimit: Infinity, anchor: 5000000,  base: 64237,  benefit: 32500 },
 ];
 
+// ESTIMATE — re-verify against IT-201-I 2026 (expected ~Jan 2027).
 // 2026 coefficients derived from NY_BRACKETS_2026 (NY Budget Act of 2025
 // rate cuts for income ≤$323,200). The IT-201-I recapture formula is
 // unchanged — only the bracket rates below $323,200 moved — so:
 //   base    = prev_top_rate × anchor − bracketed_at_anchor
 //   benefit = (top_rate − prev_top_rate) × anchor
 // yields these integers (rounded to nearest dollar). WS 1's flatRate is
-// the 2026 first-band top rate (5.4%). Re-verify against the official
-// IT-201-I 2026 when NY publishes it (~Jan 2027).
+// the 2026 first-band top rate (5.4%).
 const _NY_RECAPTURE_BANDS_MFJ_2026 = [
   { tiLimit: 161550,   firstBand: true, flatRate: 0.054, anchor: 107650 },
   { tiLimit: 323200,   anchor: 161550,   base: 333,    benefit: 808 },
@@ -146,11 +146,11 @@ const NY_RECAPTURE_MFJ_TABLE = {
 // instruction on line 47; 2023–2024 achieve the same result via
 // Worksheets 5 and 6. Net allowed deduction is the same formula.)
 //
+// ESTIMATE — re-verify against IT-196-I 2026 (expected ~Jan 2027).
 // 2026 rolls forward from 2025 — the phaseout structure has been stable
 // since NY introduced IT-196 in 2018, and the NY 2025 Budget Act cut
 // rates without touching the itemized phaseout or standard deduction
-// (which is statutorily fixed in NY Tax Law §614). To be re-verified
-// when IT-196-I 2026 publishes (~Jan 2027).
+// (which is statutorily fixed in NY Tax Law §614).
 //
 // At higher NYAGI the allowed itemized deduction is reduced; in the top
 // bands it is replaced by a flat percentage of charitable contributions:
@@ -209,8 +209,9 @@ const _NY_DEDUCTION_BANDS_MFJ_2023_2026 = [
 ];
 
 // Statutory MFJ standard deduction (NY Tax Law §614). Confirmed
-// $16,050 in the 2023/2024/2025 IT-201-I standard deduction tables;
-// 2026 is a rollover (see the comment above on the phaseout table).
+// $16,050 in the 2023/2024/2025 IT-201-I standard deduction tables.
+// 2026: ESTIMATE — rollover of the 2025 value. Re-verify against
+// IT-201-I 2026 standard deduction table (expected ~Jan 2027).
 const _NY_STANDARD_DEDUCTION_MFJ = {
   2023: 16050,
   2024: 16050,
@@ -306,6 +307,7 @@ const TAX_BRACKETS = {
       [1485906, 0.113],
       [TAX_CONFIG.MAX_INCOME, 0.123],
     ],
+    // ESTIMATE — re-verify against FTB Schedule Y 2026 (expected ~fall 2026).
     2026: [
       [22816, 0.01],
       [54089, 0.02],
