@@ -1,4 +1,5 @@
-// Tests for Code.js — NY tax table benefit recapture (MFJ).
+// Tests for Code.js — NY tax table benefit recapture (MFJ) and
+// NY itemized deduction phaseout (MFJ).
 //
 // Run with:   node Code.test.js
 //
@@ -15,7 +16,7 @@ const CODE_PATH = path.join(__dirname, 'Code.js');
 const sandbox = {};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(CODE_PATH, 'utf8'), sandbox, { filename: CODE_PATH });
-const { getNYIncomeTax } = sandbox;
+const { getNYIncomeTax, getNYDeductionMFJ } = sandbox;
 
 // ──────────────────────────────────────────────────────────────────────
 // Tiny test runner — avoids a package.json / devDependency.
@@ -101,6 +102,154 @@ test('2026 MFJ unchanged (bracketed only; no recapture table yet)', () => {
 test('WS 6 cliff: 2025 MFJ $30M → flat 10.9% × TI', () => {
   // NYAGI > $25M: tax = 0.109 × 30,000,000 = 3,270,000
   assert.strictEqual(getNYIncomeTax(30000000, 2025), 3270000);
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// getNYDeductionMFJ — IT-196 itemized deduction phaseout, MFJ.
+// ──────────────────────────────────────────────────────────────────────
+
+// Acceptance case from the bug report: real 2025 filing.
+// NYAGI > $1M (≤ $10M) → allowed itemized = 50% × $4,456 = $2,228.
+// Below the $16,050 MFJ standard, so standard wins.
+test('2025 MFJ NYAGI $1,042,100 → standard $16,050 (bug-report case)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(1042100, 53230, 4456, 2025),
+    16050
+  );
+});
+
+// One low-AGI (< $100K) case per supported year: no phaseout, itemized
+// wins when it exceeds the $16,050 MFJ standard.
+test('2023 MFJ NYAGI $80K → itemized $25K (no phaseout)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(80000, 25000, 1000, 2023),
+    25000
+  );
+});
+test('2024 MFJ NYAGI $80K → itemized $25K (no phaseout)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(80000, 25000, 1000, 2024),
+    25000
+  );
+});
+test('2025 MFJ NYAGI $80K → itemized $25K (no phaseout)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(80000, 25000, 1000, 2025),
+    25000
+  );
+});
+
+// NYAGI $100K exact — still "≤ $100K" → no phaseout.
+test('2025 MFJ NYAGI = $100K boundary → no phaseout', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(100000, 20000, 500, 2025),
+    20000
+  );
+});
+
+// NYAGI $150K for MFJ — in "more than $100K" band but WS3 anchor is
+// $200K for MFJ, so line 3 ≤ 0 → line 46 blank, no reduction.
+test('2025 MFJ NYAGI $150K → no reduction (below MFJ WS3 anchor)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(150000, 20000, 500, 2025),
+    20000
+  );
+});
+
+// NYAGI $225K MFJ: halfway through WS 3 ramp. Reduction = 12.5%.
+// itemized $30K × 0.875 = $26,250 → itemized wins.
+test('2025 MFJ NYAGI $225K → WS3 half-ramp (12.5% reduction)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(225000, 30000, 1000, 2025),
+    26250
+  );
+});
+
+// NYAGI $250K MFJ: full 25% reduction. $30K × 0.75 = $22,500.
+test('2025 MFJ NYAGI $250K → WS3 full 25% reduction', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(250000, 30000, 1000, 2025),
+    22500
+  );
+});
+
+// NYAGI $250K, itemized $20K → 75% = $15K, below $16,050 → standard.
+test('2025 MFJ NYAGI $250K, thin itemized → standard wins', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(250000, 20000, 500, 2025),
+    16050
+  );
+});
+
+// NYAGI $500K MFJ: WS 4 half-ramp. Reduction = 25% × (1 + 0.5) = 37.5%.
+// $40K × 0.625 = $25,000.
+test('2025 MFJ NYAGI $500K → WS4 half-ramp (37.5% reduction)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(500000, 40000, 1000, 2025),
+    25000
+  );
+});
+
+// NYAGI $525K: WS 4 upper bound. Reduction = 50%. $40K × 0.5 = $20K.
+test('2025 MFJ NYAGI $525K → WS4 upper bound (50% reduction)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(525000, 40000, 1000, 2025),
+    20000
+  );
+});
+
+// NYAGI $700K: flat 50% reduction band. $40K × 0.5 = $20K.
+test('2025 MFJ NYAGI $700K → flat 50% reduction', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(700000, 40000, 1000, 2025),
+    20000
+  );
+});
+
+// NYAGI exactly $10M: still in the 50%-of-charitable band. $100K × 0.5 = $50K.
+test('2025 MFJ NYAGI = $10M boundary → 50% of charitable', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(10000000, 200000, 100000, 2025),
+    50000
+  );
+});
+
+// NYAGI > $10M: 25% of charitable only.
+test('2025 MFJ NYAGI > $10M → 25% of charitable', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(15000000, 200000, 100000, 2025),
+    25000
+  );
+});
+
+// Coverage: 2023 and 2024 use the same coefficients as 2025.
+test('2024 MFJ high-AGI bug-report case → standard (same as 2025)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(1042100, 53230, 4456, 2024),
+    16050
+  );
+});
+test('2023 MFJ high-AGI bug-report case → standard (same as 2025)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(1042100, 53230, 4456, 2023),
+    16050
+  );
+});
+
+// 2026 is a rollover of the 2025 phaseout + standard deduction (see the
+// comment in Code.js above _NY_DEDUCTION_BANDS_MFJ_2023_2026). Every 2026
+// output should match the corresponding 2025 output.
+test('2026 MFJ low AGI → matches 2025 (rollover)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(80000, 25000, 1000, 2026),
+    getNYDeductionMFJ(80000, 25000, 1000, 2025)
+  );
+});
+test('2026 MFJ high-AGI bug-report case → matches 2025 (rollover)', () => {
+  assert.strictEqual(
+    getNYDeductionMFJ(1042100, 53230, 4456, 2026),
+    getNYDeductionMFJ(1042100, 53230, 4456, 2025)
+  );
 });
 
 // ──────────────────────────────────────────────────────────────────────

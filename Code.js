@@ -122,6 +122,96 @@ const NY_RECAPTURE_MFJ_TABLE = {
   // for 2026 (prior behavior) until the coefficients are transcribed.
 };
 
+// ─── NY itemized deduction phaseout (MFJ) ───────────────────────────────
+// NY Form IT-196 Itemized Deductions, lines 46–47 (MFJ). Sources:
+//   2025: https://www.tax.ny.gov/pdf/current_forms/it/it196i.pdf (pp. 20–21)
+//   2024: https://www.tax.ny.gov/pdf/2024/inc/it196i_2024.pdf (pp. 20–21)
+//   2023: https://www.tax.ny.gov/pdf/2023/printable-pdfs/inc/it196i-2023.pdf
+//         (pp. 29–30)
+// Coefficients verified identical in 2023, 2024, and 2025 editions. (2025
+// collapses the NYAGI > $1M cases into a single "enter % of line 19"
+// instruction on line 47; 2023–2024 achieve the same result via
+// Worksheets 5 and 6. Net allowed deduction is the same formula.)
+//
+// 2026 rolls forward from 2025 — the phaseout structure has been stable
+// since NY introduced IT-196 in 2018, and the NY 2025 Budget Act cut
+// rates without touching the itemized phaseout or standard deduction
+// (which is statutorily fixed in NY Tax Law §614). To be re-verified
+// when IT-196-I 2026 publishes (~Jan 2027).
+//
+// At higher NYAGI the allowed itemized deduction is reduced; in the top
+// bands it is replaced by a flat percentage of charitable contributions:
+//   NYAGI > $1M,  ≤ $10M: allowed = 50% × charitable
+//   NYAGI > $10M:         allowed = 25% × charitable
+//
+// MFJ only — matches the rest of the library. The filing-status knob is
+// the Worksheet 3 anchor ($200,000 for MFJ / QSS; lower for other
+// statuses), folded into _NY_WS3_ANCHOR_MFJ below.
+
+const _NY_WS3_ANCHOR_MFJ = 200000;             // WS 3 line 2 (MFJ/QSS)
+const _NY_WS3_WINDOW = 50000;                  // WS 3 ramp window
+const _NY_WS4_WINDOW = 50000;                  // WS 4 ramp window
+
+// Each band: { upperAgi, apply(nyAgi, itemizedTotal, charitable) }.
+// `upperAgi` is inclusive; bands are matched first-fit.
+const _NY_DEDUCTION_BANDS_MFJ_2023_2026 = [
+  // NYAGI ≤ $100K: no phaseout.
+  { upperAgi: 100000,
+    apply: (_nyAgi, itemizedTotal) => itemizedTotal },
+
+  // WS 3: reduce by 25% × (min(NYAGI − $200K, $50K) / $50K) of line 45.
+  // Between NYAGI $100K and $200K the fraction is zero (MFJ anchor is
+  // $200K, which leaves WS 3 line 3 ≤ 0 → line 46 blank). Ramps 0→25%
+  // across $200K–$250K, then flat 25% through $475K.
+  { upperAgi: 475000,
+    apply: (nyAgi, itemizedTotal) => {
+      const f = Math.min(
+        Math.max(0, nyAgi - _NY_WS3_ANCHOR_MFJ),
+        _NY_WS3_WINDOW
+      ) / _NY_WS3_WINDOW;
+      return itemizedTotal * (1 - 0.25 * f);
+    } },
+
+  // WS 4: ramp from 25% to 50% reduction across NYAGI $475K–$525K.
+  { upperAgi: 525000,
+    apply: (nyAgi, itemizedTotal) => {
+      const f = Math.min(
+        Math.max(0, nyAgi - 475000),
+        _NY_WS4_WINDOW
+      ) / _NY_WS4_WINDOW;
+      return itemizedTotal * (1 - 0.25 * (1 + f));
+    } },
+
+  // NYAGI $525K–$1M: flat 50% reduction of line 45.
+  { upperAgi: 1000000,
+    apply: (_nyAgi, itemizedTotal) => itemizedTotal * 0.5 },
+
+  // NYAGI $1M–$10M: allowed = 50% of charitable (IT-196 line 19).
+  { upperAgi: 10000000,
+    apply: (_nyAgi, _itemizedTotal, charitable) => charitable * 0.5 },
+
+  // NYAGI > $10M: allowed = 25% of charitable.
+  { upperAgi: Infinity,
+    apply: (_nyAgi, _itemizedTotal, charitable) => charitable * 0.25 },
+];
+
+// Statutory MFJ standard deduction (NY Tax Law §614). Confirmed
+// $16,050 in the 2023/2024/2025 IT-201-I standard deduction tables;
+// 2026 is a rollover (see the comment above on the phaseout table).
+const _NY_STANDARD_DEDUCTION_MFJ = {
+  2023: 16050,
+  2024: 16050,
+  2025: 16050,
+  2026: 16050,
+};
+
+const _NY_DEDUCTION_PHASEOUT_MFJ = {
+  2023: _NY_DEDUCTION_BANDS_MFJ_2023_2026,
+  2024: _NY_DEDUCTION_BANDS_MFJ_2023_2026,
+  2025: _NY_DEDUCTION_BANDS_MFJ_2023_2026,
+  2026: _NY_DEDUCTION_BANDS_MFJ_2023_2026,
+};
+
 const TAX_BRACKETS = {
   federal: {
     // Source: IRS Revenue Procedure 2022-38 (2023), 2023-34 (2024), 2024-40 (2025), 2025-32 (2026)
@@ -732,4 +822,53 @@ function getChildTaxCredit(numberOfChildren, modifiedAGI, year) {
   const finalCredit = Math.max(0, baseCredit - reduction);
 
   return finalCredit;
+}
+
+/**
+ * Returns the NY State allowed deduction for MFJ: the greater of the
+ * income-phased itemized deduction or the standard deduction.
+ *
+ * Encodes Form IT-196 lines 46–47 (Itemized deduction adjustment and
+ * after adjustment) plus the IT-201-I standard deduction table — see
+ * _NY_DEDUCTION_BANDS_MFJ_2023_2026 for the transcribed coefficients
+ * and sources.
+ *
+ * The caller must pass `itemizedTotal` as the would-be itemized amount
+ * *before* the NY income-based phaseout (equivalent to IT-196 line 45),
+ * and `charitable` as total gifts to charity (IT-196 line 19). The top
+ * two bands replace the allowed deduction entirely with a fraction of
+ * charitable contributions.
+ *
+ * @param {number} nyAgi - NY Adjusted Gross Income (IT-201 line 33)
+ * @param {number} itemizedTotal - Itemized deductions before the NY
+ *     income-based phaseout (IT-196 line 45)
+ * @param {number} charitable - Total gifts to charity (IT-196 line 19)
+ * @param {number} year - Tax year (2023-2026; 2026 rolls forward from 2025)
+ * @returns {number} Allowed deduction (standard or phased itemized,
+ *     whichever is greater).
+ * @throws {Error} If parameters are invalid or the year isn't supported.
+ *
+ * @example
+ * // 2025 MFJ, NYAGI $1,042,100, itemized $53,230 (incl. $4,456 charitable):
+ * // NYAGI > $1M → allowed itemized = 50% × $4,456 = $2,228, less than
+ * // the $16,050 MFJ standard, so the standard wins.
+ * getNYDeductionMFJ(1042100, 53230, 4456, 2025); // → 16050
+ */
+function getNYDeductionMFJ(nyAgi, itemizedTotal, charitable, year) {
+  _validateNonNegativeNumber(nyAgi, 'NY AGI');
+  _validateNonNegativeNumber(itemizedTotal, 'Itemized total');
+  _validateNonNegativeNumber(charitable, 'Charitable');
+  _validateYear(year);
+
+  const bands = _NY_DEDUCTION_PHASEOUT_MFJ[year];
+  const standard = _NY_STANDARD_DEDUCTION_MFJ[year];
+  if (!bands || standard === undefined) {
+    throw new Error(
+      `NY itemized deduction phaseout (MFJ) not available for year ${year}`
+    );
+  }
+
+  const band = bands.find(b => nyAgi <= b.upperAgi);
+  const phased = band.apply(nyAgi, itemizedTotal, charitable);
+  return phased > standard ? _roundToCents(phased) : standard;
 }
