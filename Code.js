@@ -118,11 +118,17 @@ const _NY_RECAPTURE_BANDS_MFJ_2023_2025 = [
 // unchanged — only the bracket rates below $323,200 moved — so:
 //   base    = prev_top_rate × anchor − bracketed_at_anchor
 //   benefit = (top_rate − prev_top_rate) × anchor
-// yields these integers (rounded to nearest dollar). WS 1's flatRate is
-// the 2026 first-band top rate (5.4%).
+// WS 1's flatRate is the 2026 first-band top rate (5.4%). Ambiguous
+// half-fractions are resolved by matching NY's published convention for
+// the same-shape expression on IT-201-I 2023-2025: the WS 2 benefit
+// 807.75 publishes as 807 in every prior edition, not 808 — so 2026
+// also gets 807 here, not the round-half-up 808 a naïve derivation
+// would produce. Other ambiguous rounds (e.g., Band 4 base 4210.65)
+// have no direct 2023-2025 precedent and may need adjustment once
+// IT-201-I 2026 publishes.
 const _NY_RECAPTURE_BANDS_MFJ_2026 = [
   { tiLimit: 161550,   firstBand: true, flatRate: 0.054, anchor: 107650 },
-  { tiLimit: 323200,   anchor: 161550,   base: 333,    benefit: 808 },
+  { tiLimit: 323200,   anchor: 161550,   base: 333,    benefit: 807 },
   { tiLimit: 2155350,  anchor: 323200,   base: 1140,   benefit: 3070 },
   { tiLimit: 5000000,  anchor: 2155350,  base: 4211,   benefit: 60350 },
   { tiLimit: Infinity, anchor: 5000000,  base: 64560,  benefit: 32500 },
@@ -347,6 +353,31 @@ const QUALIFIED_DIVIDEND_BRACKETS = {
   2026: [[98900, 0.00], [613700, 0.15], [TAX_CONFIG.MAX_INCOME, 0.20]],
 };
 
+// Load-time consistency check: every SUPPORTED_YEARS value must have data
+// in every year-keyed table. Surfaces drift when adding a new year as a
+// clear "missing year" error instead of silent 0-tax output or a cryptic
+// TypeError from an undefined bracket array.
+(function _assertYearCoverage() {
+  const tables = {
+    'TAX_BRACKETS.federal':        TAX_BRACKETS.federal,
+    'TAX_BRACKETS.ny':             TAX_BRACKETS.ny,
+    'TAX_BRACKETS.ca':             TAX_BRACKETS.ca,
+    'TAX_BRACKETS.nc':             TAX_BRACKETS.nc,
+    'QUALIFIED_DIVIDEND_BRACKETS': QUALIFIED_DIVIDEND_BRACKETS,
+    'CHILD_TAX_CREDIT_AMOUNTS':    CHILD_TAX_CREDIT_AMOUNTS,
+    'NY_RECAPTURE_MFJ_TABLE':      NY_RECAPTURE_MFJ_TABLE,
+    '_NY_STANDARD_DEDUCTION_MFJ':  _NY_STANDARD_DEDUCTION_MFJ,
+    '_NY_DEDUCTION_PHASEOUT_MFJ':  _NY_DEDUCTION_PHASEOUT_MFJ,
+  };
+  for (const year of TAX_CONFIG.SUPPORTED_YEARS) {
+    for (const name of Object.keys(tables)) {
+      if (tables[name][year] === undefined) {
+        throw new Error(`${name} missing year ${year}`);
+      }
+    }
+  }
+})();
+
 /**
  * Rounds a number to cents (2 decimal places) to avoid floating point errors
  * @param {number} value - Value to round
@@ -541,6 +572,14 @@ function _applyNYRecapture(taxableIncome, bracketedTax, year) {
  *
  * Applies the "tax table benefit recapture" required by Form IT-201
  * (worksheets 2–6 MFJ) for NYAGI > $107,650.
+ *
+ * The `income` argument is treated as both NY taxable income (IT-201
+ * line 38) and NYAGI (line 33). This library takes a single income
+ * argument; the two values coincide at the high-income levels where
+ * recapture matters (WS 6 cliff, full phase-in bands), so the
+ * simplification matches filed-return outcomes. For a strict separation
+ * of NYAGI from taxable income, use `getNYDeductionMFJ` to compute the
+ * allowed deduction, subtract it from NYAGI, and pass the result here.
  *
  * @param {number} income - Annual NY taxable income (treated as NYAGI too)
  * @param {number} year - Tax year (2023-2026)

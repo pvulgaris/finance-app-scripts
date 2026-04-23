@@ -16,7 +16,7 @@ const CODE_PATH = path.join(__dirname, 'Code.js');
 const sandbox = {};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync(CODE_PATH, 'utf8'), sandbox, { filename: CODE_PATH });
-const { getNYIncomeTax, getNYDeductionMFJ } = sandbox;
+const { getNYIncomeTax, getNYDeductionMFJ, getChildTaxCredit } = sandbox;
 
 // ──────────────────────────────────────────────────────────────────────
 // Tiny test runner — avoids a package.json / devDependency.
@@ -100,6 +100,19 @@ test('2026 MFJ $1,883,870 → $129,045 ±1 (fully recaptured, WS 3)', () => {
   // landing at 6.85% × TI (top-bracket flat). Coefficients differ from
   // 2023-2025 because the 2026 Budget Act cut the lower-bracket rates.
   approxEquals(getNYIncomeTax(1883870, 2026), 129045, 1, '1883870 MFJ 2026');
+});
+
+// WS 2 benefit = 807 (not 808): (0.059−0.054) × 161,550 = 807.75. NY
+// publishes 807 for the same-shape expression in 2023-2025 IT-201-I (see
+// WS 2 on page 34 of it201i_2025.pdf). 2026 follows the same convention.
+// Fully recaptured at TI=$250,000 (anchor=$161,550, window=$50K → f=1).
+test('2026 MFJ $250,000 → WS2 benefit = 807 (matches NY convention)', () => {
+  // bracketed_2026 at $250,000:
+  //   0.039·17150 + 0.044·6450 + 0.0515·4300
+  // + 0.054·(161550-27900) + 0.059·(250000-161550)
+  // = 668.85 + 283.80 + 221.45 + 7217.10 + 5218.55 = 13609.75
+  // recaptured = 13609.75 + 333 + 807 = 14749.75
+  assert.strictEqual(getNYIncomeTax(250000, 2026), 14749.75);
 });
 
 // ──────────────────────────────────────────────────────────────────────
@@ -256,6 +269,28 @@ test('2026 MFJ high-AGI bug-report case → matches 2025 (rollover)', () => {
     getNYDeductionMFJ(1042100, 53230, 4456, 2026),
     getNYDeductionMFJ(1042100, 53230, 4456, 2025)
   );
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// getChildTaxCredit — CTC phase-out rounding.
+// ──────────────────────────────────────────────────────────────────────
+
+// Locks in Math.ceil() rounding of the $1K phase-out increment. IRS Pub
+// 972 rounds UP any fraction of $1,000 over the MAGI threshold, so $1
+// over the threshold is a full $50 reduction. Without Math.ceil this
+// would be $0.05, silently understating the phase-out.
+test('CTC phase-out rounds UP: MAGI $400,001 → $50 reduction on first $1', () => {
+  // 2 children × $2,200 = $4,400 base.
+  // excess = $1; increments = ceil(1/1000) = 1; reduction = 1 × $50 = $50.
+  // 4,400 − 50 = 4,350.
+  assert.strictEqual(getChildTaxCredit(2, 400001, 2026), 4350);
+});
+
+// Second data point — fractional but larger excess.
+test('CTC phase-out rounds UP: MAGI $401,500 → $100 reduction (2 increments)', () => {
+  // excess = $1,500; increments = ceil(1500/1000) = 2; reduction = $100.
+  // 2 × $2,200 − $100 = $4,300.
+  assert.strictEqual(getChildTaxCredit(2, 401500, 2026), 4300);
 });
 
 // ──────────────────────────────────────────────────────────────────────
